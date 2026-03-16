@@ -27,7 +27,7 @@ export default async function Home() {
       <div className="flex gap-4">
         {session ? (
           <Button asChild>
-            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/admin/dashboard">Dashboard</Link>
           </Button>
         ) : (
           <Button asChild>
