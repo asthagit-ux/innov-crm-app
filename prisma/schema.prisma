@@ -12,6 +12,23 @@ enum UserRole {
   USER
 }
 
+enum LeadStatus {
+  NEW
+  FOLLOW_UP
+  NOT_ANSWERED
+  MEETING_FIXED
+  CONTACT_IN_FUTURE
+  CLOSED_WON
+  CLOSED_LOST
+  JUNK
+}
+
+enum LeadTemperature {
+  HOT
+  WARM
+  COLD
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   email            String   @unique
@@ -22,12 +39,12 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Relations
   userAuth       UserAuth?
   rolePermission RolePermission @relation(fields: [rolePermissionId], references: [id])
   chats          Chat[]
   sessions       Session[]
+  leads          Lead[]
+  leadActivities LeadActivity[]
 
   @@index([email])
   @@map("users")
@@ -131,4 +148,58 @@ model ChatMessage {
   @@index([chatId])
   @@index([updatedAt])
   @@map("chat_messages")
+}
+
+model Lead {
+  id String @id @default(cuid())
+  customerName     String
+  contactNumber    String
+  alternateContact String?
+  state String?
+  city  String?
+  platform        String
+  status          LeadStatus        @default(NEW)
+  temperature     LeadTemperature?
+  leadCreatedDate DateTime
+  followUpDate    DateTime?
+  propertyType    String?
+  serviceRequired String?
+  budgetRange     String?
+  propertySize    String?
+  requirement     String? @db.Text
+  initialNotes    String? @db.Text
+  preferredCallTime String?
+  visitChargeQuoted Decimal? @db.Decimal(10, 2)
+  visitTokenAmount  Decimal? @db.Decimal(10, 2)
+  userId String   @db.Uuid
+  user   User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activities LeadActivity[]
+
+  @@index([status])
+  @@index([userId])
+  @@index([followUpDate])
+  @@map("leads")
+}
+
+model LeadActivity {
+  id           String   @id @default(cuid())
+  leadId       String
+  lead         Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  activityDate DateTime
+  activityType String
+  note         String? @db.Text
+
+  userId String? @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([activityDate])
+  @@map("lead_activities")
 }
