@@ -30,7 +30,7 @@ import { Button } from './ui/button';
 import { Breadcrumb, BreadcrumbItem } from './ui/breadcrumb';
 import { Separator } from './ui/separator';
 import { cn } from '@/lib/utils';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState, useSyncExternalStore } from 'react';
 import NavFooter from '@/components/NavFooter';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -41,12 +41,12 @@ export function AppSidebar({ children, ...props }: React.ComponentProps<typeof S
   const baseUrl = navigationConfig?.baseUrl;
   const routes = navigationConfig?.routes;
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const contentRef = useRef(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   if (!navigationConfig || !routes || !baseUrl) {
     return null;

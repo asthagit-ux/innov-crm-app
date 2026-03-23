@@ -7,6 +7,18 @@ import prisma from "@/lib/prisma";
  */
 export async function POST(request: Request) {
   try {
+    if (!process.env.DATABASE_URL?.trim()) {
+      console.error({
+        fn: "POST /api/auth/check-email",
+        code: "MISSING_DATABASE_URL",
+        hint: "Set DATABASE_URL in Vercel Project Settings → Environment Variables for Production.",
+      });
+      return NextResponse.json(
+        { success: false, error: "Could not verify email right now." },
+        { status: 500 },
+      );
+    }
+
     const body = await request.json();
     const email = typeof body?.email === "string" ? body.email.trim() : "";
 
@@ -26,7 +38,14 @@ export async function POST(request: Request) {
       success: true,
       exists: Boolean(existingUser),
     });
-  } catch {
+  } catch (error: unknown) {
+    const err = error as { message?: string; code?: string };
+    console.error({
+      fn: "POST /api/auth/check-email",
+      message: err?.message ?? String(error),
+      code: err?.code,
+      error,
+    });
     return NextResponse.json(
       { success: false, error: "Could not verify email right now." },
       { status: 500 },

@@ -66,12 +66,21 @@ export function LoginForm() {
       body: JSON.stringify({ email: emailToCheck }),
     });
 
-    const result = await response.json();
-    if (!response.ok || !result?.success) {
-      throw new Error(result?.error ?? "Could not validate email.");
+    let result: { success?: boolean; error?: string; exists?: boolean } = {};
+    try {
+      const text = await response.text();
+      if (text) {
+        result = JSON.parse(text) as typeof result;
+      }
+    } catch {
+      throw new Error("Could not validate email.");
     }
 
-    return Boolean(result?.exists);
+    if (!response.ok || !result.success) {
+      throw new Error(result.error ?? "Could not validate email.");
+    }
+
+    return Boolean(result.exists);
   }
 
   async function sendOtpForEmail(emailToUse: string) {
