@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { getCurrentAppConfig } from '@/config/route';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
@@ -26,11 +26,12 @@ const NavFooter = () => {
   const u = useAuth();
   const navigationConfig = getCurrentAppConfig(u);
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const router = useRouter();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   if (!navigationConfig || !navigationConfig.routes || !navigationConfig.baseUrl) {
     return null;
@@ -42,7 +43,6 @@ const NavFooter = () => {
   const userInfoRaw = (uSafe && typeof uSafe === 'object' && 'email' in uSafe ? uSafe.email : null)
     ?? (uSafe && typeof uSafe === 'object' && 'phone' in uSafe ? uSafe.phone : null) ?? null;
   const userInfo = userInfoRaw != null ? String(userInfoRaw) : null;
-  const router = useRouter();
 
   const handleLogout = async () => {
     toast.success('Logging out...');
