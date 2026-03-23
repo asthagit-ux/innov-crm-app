@@ -1,21 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { toast } from "sonner";
-import { EyeIcon, EyeOffIcon, Loader2Icon } from "lucide-react";
+import { Loader2Icon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSeparator,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import {
   Card,
   CardContent,
@@ -26,59 +24,131 @@ import {
 } from "@/components/ui/card";
 
 /**
- * Login form with email/password.
- * Redirects to /dashboard on success; shows inline errors on failure.
+ * Login form with email OTP.
+ * Step 1 requests an OTP; Step 2 verifies the OTP and creates a session.
  */
 export function LoginForm() {
+  const OTP_RESEND_SECONDS = 120;
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendTimerSeconds, setResendTimerSeconds] = useState(0);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+  useEffect(() => {
+    if (!otpRequested || resendTimerSeconds <= 0) {
+      return;
+    }
 
-    const { data, error: signInError } = await authClient.signIn.email({
-      email,
-      password,
-      callbackURL: "/dashboard",
+    const timer = window.setInterval(() => {
+      setResendTimerSeconds((previousSeconds) =>
+        previousSeconds > 0 ? previousSeconds - 1 : 0,
+      );
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [otpRequested, resendTimerSeconds]);
+
+  function formatCountdown(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  async function ensureEmailExists(emailToCheck: string) {
+    const response = await fetch("/api/auth/check-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: emailToCheck }),
     });
 
-    setLoading(false);
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error ?? "Could not validate email.");
+    }
+
+    return Boolean(result?.exists);
+  }
+
+  async function sendOtpForEmail(emailToUse: string) {
+    const { error: otpRequestError } = await authClient.emailOtp.sendVerificationOtp({
+      email: emailToUse,
+      type: "sign-in",
+    });
+
+    if (otpRequestError) {
+      throw new Error(otpRequestError.message ?? "Could not send OTP.");
+    }
+  }
+
+  async function handleRequestOtp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setRequestingOtp(true);
+    const normalizedEmail = email.trim().toLowerCase();
+
+    try {
+      const exists = await ensureEmailExists(normalizedEmail);
+      if (!exists) {
+        const notFoundMessage = "No account found for this email.";
+        toast.error(notFoundMessage);
+        return;
+      }
+
+      await sendOtpForEmail(normalizedEmail);
+      setEmail(normalizedEmail);
+      setOtpRequested(true);
+      setResendTimerSeconds(OTP_RESEND_SECONDS);
+      toast.success("Check your email for the 6-digit code.");
+    } catch (requestError) {
+      const message =
+        requestError instanceof Error
+          ? requestError.message
+          : "Could not send OTP.";
+      toast.error(message);
+    } finally {
+      setRequestingOtp(false);
+    }
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setVerifyingOtp(true);
+
+    const { data, error: signInError } = await authClient.signIn.emailOtp({
+      email,
+      otp,
+    });
+
+    setVerifyingOtp(false);
 
     if (signInError) {
-      setError(signInError.message ?? "Invalid email or password.");
+      toast.error(signInError.message ?? "Invalid OTP.");
       return;
     }
 
     if (data) {
       toast.success("Signed in successfully");
-      router.push("/dashboard");
+      router.push("/admin/dashboard");
       router.refresh();
     }
   }
 
   return (
     <Card className="w-full max-w-sm border-0 bg-card shadow-lg">
-      <CardHeader className="space-y-1.5 pb-4">
-        <CardTitle className="text-2xl font-semibold tracking-tight">
+      <CardHeader className="space-y-1.5 pb-4 text-center">
+        <CardTitle className="text-2xl font-semibold tracking-tight text-center">
           Sign in
         </CardTitle>
-        <CardDescription className="text-muted-foreground">
-          Enter your credentials to access your account
+        <CardDescription className="text-muted-foreground text-center">
+          Sign in with a one-time passcode sent to your email
         </CardDescription>
       </CardHeader>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
         <CardContent className="space-y-4">
-          {error && (
-            <Alert variant="destructive" className="py-2">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -89,64 +159,111 @@ export function LoginForm() {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
-              disabled={loading}
+              disabled={requestingOtp || verifyingOtp || otpRequested}
               className="h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <InputGroup className="h-10">
-              <InputGroupInput
-                id="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-                disabled={loading}
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
+          {otpRequested && (
+            <div className="space-y-4">
+              <div className="space-y-1 text-center">
+                <Label htmlFor="otp" className="text-center">
+                  Enter verification code
+                </Label>
+                <p className="text-muted-foreground text-sm">
+                  Enter the 6-digit code from your inbox
+                </p>
+              </div>
+              <InputOTP
+                id="otp"
+                maxLength={6}
+                value={otp}
+                onChange={(value) => setOtp(value)}
+                disabled={verifyingOtp}
+                containerClassName="justify-center"
+              >
+                <InputOTPGroup className="gap-2">
+                  <InputOTPSlot index={0} className="h-11 w-11 text-base" />
+                  <InputOTPSlot index={1} className="h-11 w-11 text-base" />
+                  <InputOTPSlot index={2} className="h-11 w-11 text-base" />
+                  <InputOTPSeparator />
+                  <InputOTPSlot index={3} className="h-11 w-11 text-base" />
+                  <InputOTPSlot index={4} className="h-11 w-11 text-base" />
+                  <InputOTPSlot index={5} className="h-11 w-11 text-base" />
+                </InputOTPGroup>
+              </InputOTP>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-muted-foreground text-sm">
+                  {resendTimerSeconds > 0
+                    ? `Request a new code in ${formatCountdown(resendTimerSeconds)}`
+                    : "Didn't receive the code?"}
+                </span>
+                <Button
                   type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  tabIndex={-1}
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0 text-sm font-normal"
+                  disabled={requestingOtp || verifyingOtp || resendTimerSeconds > 0}
+                  onClick={async () => {
+                    setRequestingOtp(true);
+
+                    try {
+                      await sendOtpForEmail(email);
+                      setResendTimerSeconds(OTP_RESEND_SECONDS);
+                      toast.success("A new code has been sent.");
+                    } catch (requestError) {
+                      const message =
+                        requestError instanceof Error
+                          ? requestError.message
+                          : "Could not resend OTP.";
+                      toast.error(message);
+                    } finally {
+                      setRequestingOtp(false);
+                    }
+                  }}
                 >
-                  {showPassword ? (
-                    <EyeOffIcon className="size-4" />
-                  ) : (
-                    <EyeIcon className="size-4" />
-                  )}
-                </InputGroupButton>
-              </InputGroupAddon>
-            </InputGroup>
-          </div>
+                  {requestingOtp ? "Sending..." : "Resend code"}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4 pt-2">
           <Button
             type="submit"
             className="w-full h-10"
-            disabled={loading}
+            disabled={
+              requestingOtp ||
+              verifyingOtp ||
+              !email ||
+              (otpRequested && otp.length !== 6)
+            }
           >
-            {loading ? (
+            {requestingOtp || verifyingOtp ? (
               <>
                 <Loader2Icon className="size-4 animate-spin" />
-                Signing in…
+                {otpRequested ? "Verifying..." : "Sending OTP..."}
               </>
             ) : (
-              "Sign in"
+              <>{otpRequested ? "Verify OTP" : "Send OTP"}</>
             )}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            <Link
-              href="/"
-              className="underline underline-offset-4 hover:text-foreground transition-colors"
-            >
-              Back to home
-            </Link>
-          </p>
+          {otpRequested && (
+            <div className="flex w-full items-center justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 w-full"
+                disabled={requestingOtp || verifyingOtp}
+                onClick={() => {
+                  setOtp("");
+                  setOtpRequested(false);
+                  setResendTimerSeconds(0);
+                }}
+              >
+                Change email
+              </Button>
+            </div>
+          )}
         </CardFooter>
       </form>
     </Card>

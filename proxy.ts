@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 
 /**
  * Protects routes under (main) by redirecting unauthenticated users to /login.
- * Matches /dashboard and any future protected routes.
+ * Matches /admin and nested protected routes.
  */
 export async function proxy(request: NextRequest) {
   const session = await auth.api.getSession({
@@ -18,5 +18,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*"],
+  matcher: ["/admin", "/admin/:path*"],
 };
