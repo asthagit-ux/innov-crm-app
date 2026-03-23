@@ -39,7 +39,6 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  userAuth       UserAuth?
   rolePermission RolePermission @relation(fields: [rolePermissionId], references: [id])
   chats          Chat[]
   sessions       Session[]
@@ -95,26 +94,6 @@ model RolePermission {
   users User[]
 
   @@map("role_permissions")
-}
-
-/** Credential storage for Better Auth (email/password). Maps to account model. */
-model UserAuth {
-  id         String   @id @default(uuid()) @db.Uuid
-  userId     String   @unique @db.Uuid
-  accountId  String
-  providerId String   @default("credential")
-  password   String
-  isDeleted  Boolean  @default(false)
-  isVerified Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([providerId, accountId])
-  @@index([userId])
-  @@map("user_auths")
 }
 
 model Chat {

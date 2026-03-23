@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
@@ -7,12 +6,10 @@ import pg from "pg";
 const { Pool } = pg;
 
 const SEED_EMAIL = "test@gmail.com";
-const SEED_PASSWORD = "123456";
 
 /**
  * Seed script for manual user creation.
- * Creates RolePermission, User, and Account for Better Auth email/password login.
- * Uses Account table (Better Auth); password hashed with better-auth/crypto.
+ * Creates RolePermission and User for Better Auth email OTP login.
  * Run with: npx prisma db seed
  */
 async function main() {
@@ -31,50 +28,24 @@ async function main() {
     update: { role: "ADMIN" },
   });
 
-  const hashedPassword = await hashPassword(SEED_PASSWORD);
-
   const existingUser = await prisma.user.findUnique({
     where: { email: SEED_EMAIL },
-    include: { userAuth: true },
   });
 
   if (existingUser) {
-    if (existingUser.userAuth) {
-      await prisma.userAuth.update({
-        where: { id: existingUser.userAuth.id },
-        data: { password: hashedPassword },
-      });
-      console.log("Updated password for existing user:", SEED_EMAIL);
-    } else {
-      await prisma.userAuth.create({
-        data: {
-          userId: existingUser.id,
-          accountId: SEED_EMAIL,
-          providerId: "credential",
-          password: hashedPassword,
-        },
-      });
-      console.log("Created UserAuth for existing user:", SEED_EMAIL);
-    }
+    console.log("User already exists:", SEED_EMAIL);
   } else {
     await prisma.user.create({
       data: {
         email: SEED_EMAIL,
         name: "Test",
         rolePermissionId: role.id,
-        userAuth: {
-          create: {
-            accountId: SEED_EMAIL,
-            providerId: "credential",
-            password: hashedPassword,
-          },
-        },
       },
     });
     console.log("Created user:", SEED_EMAIL);
   }
 
-  console.log("Seed complete. Login with:", SEED_EMAIL, "| Password:", SEED_PASSWORD);
+  console.log("Seed complete. Request OTP for:", SEED_EMAIL);
   await pool.end();
 }
 
