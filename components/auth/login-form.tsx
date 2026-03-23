@@ -66,7 +66,12 @@ export function LoginForm() {
       body: JSON.stringify({ email: emailToCheck }),
     });
 
-    let result: { success?: boolean; error?: string; exists?: boolean } = {};
+    let result: {
+      success?: boolean;
+      error?: string;
+      exists?: boolean;
+      code?: string;
+    } = {};
     try {
       const text = await response.text();
       if (text) {
@@ -77,7 +82,9 @@ export function LoginForm() {
     }
 
     if (!response.ok || !result.success) {
-      throw new Error(result.error ?? "Could not validate email.");
+      const baseMessage = result.error ?? "Could not validate email.";
+      const debugCode = result.code ? ` [${result.code}]` : "";
+      throw new Error(`${baseMessage}${debugCode}`);
     }
 
     return Boolean(result.exists);

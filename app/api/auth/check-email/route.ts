@@ -14,7 +14,11 @@ export async function POST(request: Request) {
         hint: "Set DATABASE_URL in Vercel Project Settings → Environment Variables for Production.",
       });
       return NextResponse.json(
-        { success: false, error: "Could not verify email right now." },
+        {
+          success: false,
+          error: "Could not verify email right now.",
+          code: "MISSING_DATABASE_URL",
+        },
         { status: 500 },
       );
     }
@@ -47,7 +51,11 @@ export async function POST(request: Request) {
       error,
     });
     return NextResponse.json(
-      { success: false, error: "Could not verify email right now." },
+      {
+        success: false,
+        error: "Could not verify email right now.",
+        code: "DB_QUERY_FAILED",
+      },
       { status: 500 },
     );
   }
