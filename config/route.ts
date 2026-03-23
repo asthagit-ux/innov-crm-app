@@ -18,10 +18,6 @@ export function getCurrentAppConfig(user: unknown) {
         title: "Users",
         url: "/users",
         icon: Users,
-        items: [
-          { title: "All Users", href: "/users" },
-          { title: "Create User", href: "/users/create" },
-        ],
       },
       {
         title: "Settings",
