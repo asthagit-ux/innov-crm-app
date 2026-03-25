@@ -71,6 +71,7 @@ export function LoginForm() {
       error?: string;
       exists?: boolean;
       code?: string;
+      prismaCode?: string;
     } = {};
     try {
       const text = await response.text();
@@ -84,7 +85,8 @@ export function LoginForm() {
     if (!response.ok || !result.success) {
       const baseMessage = result.error ?? "Could not validate email.";
       const debugCode = result.code ? ` [${result.code}]` : "";
-      throw new Error(`${baseMessage}${debugCode}`);
+      const prismaHint = result.prismaCode ? ` (${result.prismaCode})` : "";
+      throw new Error(`${baseMessage}${debugCode}${prismaHint}`);
     }
 
     return Boolean(result.exists);
