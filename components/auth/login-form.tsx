@@ -23,10 +23,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-/**
- * Login form with email OTP.
- * Step 1 requests an OTP; Step 2 verifies the OTP and creates a session.
- */
 export function LoginForm() {
   const OTP_RESEND_SECONDS = 120;
   const router = useRouter();
@@ -41,13 +37,11 @@ export function LoginForm() {
     if (!otpRequested || resendTimerSeconds <= 0) {
       return;
     }
-
     const timer = window.setInterval(() => {
       setResendTimerSeconds((previousSeconds) =>
         previousSeconds > 0 ? previousSeconds - 1 : 0,
       );
     }, 1000);
-
     return () => {
       window.clearInterval(timer);
     };
@@ -65,7 +59,6 @@ export function LoginForm() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: emailToCheck }),
     });
-
     let result: {
       success?: boolean;
       error?: string;
@@ -81,14 +74,12 @@ export function LoginForm() {
     } catch {
       throw new Error("Could not validate email.");
     }
-
     if (!response.ok || !result.success) {
       const baseMessage = result.error ?? "Could not validate email.";
       const debugCode = result.code ? ` [${result.code}]` : "";
       const prismaHint = result.prismaCode ? ` (${result.prismaCode})` : "";
       throw new Error(`${baseMessage}${debugCode}${prismaHint}`);
     }
-
     return Boolean(result.exists);
   }
 
@@ -97,7 +88,6 @@ export function LoginForm() {
       email: emailToUse,
       type: "sign-in",
     });
-
     if (otpRequestError) {
       throw new Error(otpRequestError.message ?? "Could not send OTP.");
     }
@@ -107,25 +97,19 @@ export function LoginForm() {
     e.preventDefault();
     setRequestingOtp(true);
     const normalizedEmail = email.trim().toLowerCase();
-
     try {
       const exists = await ensureEmailExists(normalizedEmail);
       if (!exists) {
-        const notFoundMessage = "No account found for this email.";
-        toast.error(notFoundMessage);
+        toast.error("No account found for this email.");
         return;
       }
-
       await sendOtpForEmail(normalizedEmail);
       setEmail(normalizedEmail);
       setOtpRequested(true);
       setResendTimerSeconds(OTP_RESEND_SECONDS);
       toast.success("Check your email for the 6-digit code.");
     } catch (requestError) {
-      const message =
-        requestError instanceof Error
-          ? requestError.message
-          : "Could not send OTP.";
+      const message = requestError instanceof Error ? requestError.message : "Could not send OTP.";
       toast.error(message);
     } finally {
       setRequestingOtp(false);
@@ -135,19 +119,15 @@ export function LoginForm() {
   async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setVerifyingOtp(true);
-
     const { data, error: signInError } = await authClient.signIn.emailOtp({
       email,
       otp,
     });
-
     setVerifyingOtp(false);
-
     if (signInError) {
       toast.error(signInError.message ?? "Invalid OTP.");
       return;
     }
-
     if (data) {
       toast.success("Signed in successfully");
       router.push("/admin/dashboard");
@@ -223,16 +203,12 @@ export function LoginForm() {
                   disabled={requestingOtp || verifyingOtp || resendTimerSeconds > 0}
                   onClick={async () => {
                     setRequestingOtp(true);
-
                     try {
                       await sendOtpForEmail(email);
                       setResendTimerSeconds(OTP_RESEND_SECONDS);
                       toast.success("A new code has been sent.");
                     } catch (requestError) {
-                      const message =
-                        requestError instanceof Error
-                          ? requestError.message
-                          : "Could not resend OTP.";
+                      const message = requestError instanceof Error ? requestError.message : "Could not resend OTP.";
                       toast.error(message);
                     } finally {
                       setRequestingOtp(false);

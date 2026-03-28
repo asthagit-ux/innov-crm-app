@@ -36,16 +36,13 @@ export const auth = betterAuth({
         if (type !== "sign-in") {
           return;
         }
-
         const existingUser = await prisma.user.findUnique({
           where: { email },
           select: { id: true },
         });
-
         if (!existingUser) {
           throw new Error("No account found for this email.");
         }
-
         await sendOtpEmail({
           email,
           otp,
