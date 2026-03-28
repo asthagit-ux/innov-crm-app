@@ -25,10 +25,7 @@ export async function POST(req: NextRequest) {
         for (const change of entry.changes) {
           if (change.field === "leadgen") {
             const leadgenId = change.value.leadgen_id;
-            const pageId = change.value.page_id;
-            const formId = change.value.form_id;
 
-            // Fetch lead details from Meta API
             const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
             const response = await fetch(
               `https://graph.facebook.com/v19.0/${leadgenId}?access_token=${accessToken}`
@@ -41,7 +38,6 @@ export async function POST(req: NextRequest) {
                 fields[field.name] = field.values[0];
               }
 
-              // Save to database
               await prisma.lead.create({
                 data: {
                   customerName: fields["full_name"] || fields["name"] || "Unknown",
