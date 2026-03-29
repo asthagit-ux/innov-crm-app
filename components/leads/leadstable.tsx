@@ -1,9 +1,9 @@
-'use client';
-
-import { useState } from 'react';
+useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
-import { Button } from '@/components/ui/button';
+import { Butt'use client';
+
+import {on } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
