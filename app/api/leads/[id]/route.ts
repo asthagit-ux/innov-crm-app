@@ -4,13 +4,13 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 // GET single lead
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const lead = await prisma.lead.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         user: { select: { id: true, name: true, email: true } },
         assignedUser: { select: { id: true, name: true, email: true } },
@@ -36,9 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         },
       },
     });
-
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-
     return NextResponse.json({ success: true, data: lead });
   } catch (error) {
     console.error("GET lead error:", error);
@@ -47,15 +45,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 // PATCH update a lead
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const body = await req.json();
-
     const lead = await prisma.lead.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(body.customerName && { customerName: body.customerName }),
         ...(body.contactNumber && { contactNumber: body.contactNumber }),
@@ -74,7 +71,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         ...(body.initialNotes !== undefined && { initialNotes: body.initialNotes }),
       },
     });
-
     return NextResponse.json({ success: true, data: lead });
   } catch (error) {
     console.error("PATCH lead error:", error);
@@ -83,13 +79,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 // DELETE a lead
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    await prisma.lead.delete({ where: { id: params.id } });
-
+    await prisma.lead.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE lead error:", error);
