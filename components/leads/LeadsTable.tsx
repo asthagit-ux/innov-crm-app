@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,7 @@ function formatDate(value: string | null | undefined) {
 
 function TemperatureBadge({ value }: { value: string | null | undefined }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, React.ReactElement> = {
     HOT: <Flame className="h-3 w-3" />,
     WARM: <Thermometer className="h-3 w-3" />,
     COLD: <Snowflake className="h-3 w-3" />,
