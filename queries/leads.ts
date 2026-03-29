@@ -41,7 +41,7 @@ export function useCreateLead() {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => createLead(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: leadQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.all });
     },
   });
 }
@@ -51,7 +51,7 @@ export function useUpdateLead(id: string) {
   return useMutation({
     mutationFn: (data: Record<string, unknown>) => updateLead(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: leadQueryKeys.all });
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.all });
     },
   });
 }
@@ -62,7 +62,7 @@ export function useAddComment(leadId: string) {
     mutationFn: ({ content, type }: { content: string; type?: string }) =>
       addComment(leadId, content, type),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
     },
   });
 }
@@ -73,7 +73,7 @@ export function useScheduleMeeting(leadId: string) {
     mutationFn: (data: { agenda: string; meetingDate: string }) =>
       scheduleMeeting({ leadId, ...data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
     },
   });
 }

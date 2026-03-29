@@ -1,9 +1,9 @@
-useState } from 'react';
+'use client';
+
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
-import { Butt'use client';
-
-import {on } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,7 +90,15 @@ export function LeadsTable() {
       leadCreatedDate: new Date().toISOString(),
     });
     setShowAddModal(false);
-    setNewLead({ customerName: '', contactNumber: '', city: '', propertyType: 'Banquet Hall', budgetRange: '', temperature: 'WARM', platform: 'Meta Ads' });
+    setNewLead({
+      customerName: '',
+      contactNumber: '',
+      city: '',
+      propertyType: 'Banquet Hall',
+      budgetRange: '',
+      temperature: 'WARM',
+      platform: 'Meta Ads',
+    });
   };
 
   return (
@@ -105,7 +113,6 @@ export function LeadsTable() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -156,7 +163,6 @@ export function LeadsTable() {
         </Select>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -216,7 +222,6 @@ export function LeadsTable() {
         </CardContent>
       </Card>
 
-      {/* Add Lead Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent>
           <DialogHeader>
