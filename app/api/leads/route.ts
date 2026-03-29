@@ -4,12 +4,29 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
 // GET all leads
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const temperature = searchParams.get("temperature") || "";
+    const activeStatus = searchParams.get("activeStatus") || "";
+
     const leads = await prisma.lead.findMany({
+      where: {
+        ...(search && {
+          OR: [
+            { customerName: { contains: search, mode: "insensitive" } },
+            { contactNumber: { contains: search } },
+          ],
+        }),
+        ...(status && { status: status as never }),
+        ...(temperature && { temperature: temperature as never }),
+        ...(activeStatus && { activeStatus: activeStatus as never }),
+      },
       orderBy: { createdAt: "desc" },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -44,7 +61,6 @@ export async function POST(req: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-
     const lead = await prisma.lead.create({
       data: {
         customerName: body.customerName,
