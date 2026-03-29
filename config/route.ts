@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, Settings } from "lucide-react";
+import { LayoutDashboard, Users, Settings, UserCheck } from "lucide-react";
 
 export type NavSubItem = {
   title: string;
@@ -13,19 +13,19 @@ export type NavMainItem = {
   items?: NavSubItem[];
 };
 
-/**
- * Returns navigation config for the admin layout.
- * @param {Record<string, unknown> | null} user - Current session user or null
- */
 export function getCurrentAppConfig(user: unknown) {
   const baseUrl = "/admin";
-
   const defaultRoutes: { navMain: NavMainItem[] } = {
     navMain: [
       {
         title: "Dashboard",
         url: "/dashboard",
         icon: LayoutDashboard,
+      },
+      {
+        title: "Leads",
+        url: "/leads",
+        icon: UserCheck,
       },
       {
         title: "Users",
@@ -39,11 +39,10 @@ export function getCurrentAppConfig(user: unknown) {
       },
     ],
   };
-
   return {
     baseUrl,
     routes: defaultRoutes,
     user,
   };
 }
-
+     
