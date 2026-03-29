@@ -196,7 +196,7 @@ export function LeadsTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leads.map((lead: any) => (
+                {leads.map((lead: Record<string, any>) => (
                   <TableRow
                     key={lead.id}
                     className="cursor-pointer hover:bg-muted/50"
