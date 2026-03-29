@@ -1,5 +1,4 @@
 'use client';
-
 import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useDashboardQuery } from '@/queries/dashboard';
@@ -10,11 +9,8 @@ import { TopLeadsPanel, TopLeadsPanelSkeleton } from '@/components/dashboard/Top
 
 function useIndiaGreeting() {
   return useMemo(() => {
-    const nowInIndia = new Date(
-      new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-    );
-    const hour = nowInIndia.getHours();
-
+    const now = new Date();
+    const hour = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' })).getHours();
     if (hour >= 5 && hour < 12) return 'Good morning';
     if (hour >= 12 && hour < 17) return 'Good afternoon';
     if (hour >= 17 && hour < 21) return 'Good evening';
@@ -32,13 +28,11 @@ function DashboardSkeleton() {
         </div>
         <Skeleton className="h-9 w-36" />
       </div>
-
       <div className="grid gap-4 md:grid-cols-3">
         <Skeleton className="h-32" />
         <Skeleton className="h-32" />
         <Skeleton className="h-32" />
       </div>
-
       <TopLeadsPanelSkeleton />
     </div>
   );
@@ -47,16 +41,12 @@ function DashboardSkeleton() {
 export function DashboardOverview() {
   const router = useRouter();
   const greeting = useIndiaGreeting();
-
-  const { data, isLoading, isError, error, refetch, isFetching } =
-    useDashboardQuery();
-
+  const { data, isLoading, isError, error, refetch, isFetching } = useDashboardQuery();
   const summary = data?.summary || {
     totalLeads: 0,
     hotLeads: 0,
     activeLeads: 0,
   };
-
   const recentLeads = data?.recentLeads || [];
 
   if (isLoading) {
@@ -67,9 +57,7 @@ export function DashboardOverview() {
     return (
       <div className="space-y-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
         <p className="text-sm text-red-500">
-          {error instanceof Error
-            ? error.message
-            : 'Something went wrong while loading the dashboard.'}
+          {error instanceof Error ? error.message : 'Something went wrong while loading the dashboard.'}
         </p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           Try again
@@ -89,14 +77,8 @@ export function DashboardOverview() {
             Leads overview for today (preview).
           </p>
         </div>
-
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
-          >
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             {isFetching ? 'Refreshing...' : 'Refresh'}
           </Button>
           <Button size="sm" onClick={onViewAllLeads}>
@@ -104,11 +86,8 @@ export function DashboardOverview() {
           </Button>
         </div>
       </div>
-
       <DashboardStats summary={summary} />
-
       <TopLeadsPanel recentLeads={recentLeads} onViewAll={onViewAllLeads} />
     </div>
   );
 }
-
