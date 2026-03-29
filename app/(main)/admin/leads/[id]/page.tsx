@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { LeadDetail } from '@/components/leads/LeadDetail';
+import { LeadDetail } from '@/components/leads/LeadDetails';
 
 export const metadata: Metadata = {
   title: 'Lead Detail',
