@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadQuery, useUpdateLead, useAddComment, useScheduleMeeting } from '@/queries/leads';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Send, Calendar, X, UserPlus } from 'lucide-react';
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—';
@@ -36,6 +37,8 @@ function formatDateTime(value: string) {
   });
 }
 
+type AppUser = { id: string; name: string; email: string };
+
 export function LeadDetail({ id }: { id: string }) {
   const router = useRouter();
   const { data: lead, isLoading, refetch } = useLeadQuery(id);
@@ -48,6 +51,17 @@ export function LeadDetail({ id }: { id: string }) {
   const [meetingForm, setMeetingForm] = useState({ agenda: '', meetingDate: '', meetingTime: '' });
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/users')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setAllUsers(d.data.users);
+      })
+      .catch(() => {});
+  }, []);
 
   if (isLoading) {
     return (
@@ -109,8 +123,33 @@ export function LeadDetail({ id }: { id: string }) {
     void refetch();
   };
 
+  const handleAddTeamMember = async (userId: string) => {
+    setTeamLoading(true);
+    await fetch(`/api/leads/${id}/team`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    void refetch();
+    setTeamLoading(false);
+  };
+
+  const handleRemoveTeamMember = async (userId: string) => {
+    setTeamLoading(true);
+    await fetch(`/api/leads/${id}/team`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    void refetch();
+    setTeamLoading(false);
+  };
+
   const comments = (lead.comments as Record<string, unknown>[]) || [];
   const meetings = (lead.meetings as Record<string, unknown>[]) || [];
+  const teamMembers = (lead.teamMembers as { userId: string; user: AppUser }[]) || [];
+  const teamMemberIds = teamMembers.map(m => m.userId);
+  const availableToAdd = allUsers.filter(u => !teamMemberIds.includes(u.id));
 
   return (
     <div className="space-y-6">
@@ -272,6 +311,74 @@ export function LeadDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
+          {/* Team Management Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Team</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Primary Assignee */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Primary Assignee</Label>
+                <Select
+                  value={(lead.assignedTo as string) || ''}
+                  onValueChange={v => updateLead.mutate({ assignedTo: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select primary assignee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allUsers.map(u => (
+                      <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Collaborators */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Collaborators</Label>
+                <div className="flex flex-wrap gap-2">
+                  {teamMembers.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No collaborators yet.</p>
+                  )}
+                  {teamMembers.map(m => (
+                    <Badge key={m.userId} variant="secondary" className="flex items-center gap-1 pr-1">
+                      {m.user.name}
+                      <button
+                        onClick={() => void handleRemoveTeamMember(m.userId)}
+                        disabled={teamLoading}
+                        className="ml-1 rounded-full hover:bg-muted p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+
+                {/* Add collaborator */}
+                {availableToAdd.length > 0 && (
+                  <div className="flex gap-2 items-center">
+                    <Select onValueChange={v => void handleAddTeamMember(v)}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Add collaborator..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableToAdd.map(u => (
+                          <SelectItem key={u.id} value={u.id}>
+                            <span className="flex items-center gap-2">
+                              <UserPlus className="h-3 w-3" /> {u.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Meetings */}
           {meetings.length > 0 && (
             <Card>
@@ -393,3 +500,4 @@ export function LeadDetail({ id }: { id: string }) {
     </div>
   );
 }
+
