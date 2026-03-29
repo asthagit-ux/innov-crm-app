@@ -58,7 +58,15 @@ export function LeadDetail({ id }: { id: string }) {
     fetch('/api/users')
       .then(r => r.json())
       .then(d => {
-        if (d.success) setAllUsers(d.data.users);
+        if (d.success) {
+          const savedIds: string[] = JSON.parse(
+            localStorage.getItem('team_enabled_users') ?? '[]'
+          );
+          const filtered = savedIds.length > 0
+            ? d.data.users.filter((u: AppUser) => savedIds.includes(u.id))
+            : d.data.users;
+          setAllUsers(filtered);
+        }
       })
       .catch(() => {});
   }, []);
@@ -97,6 +105,9 @@ export function LeadDetail({ id }: { id: string }) {
       requirement: (lead.requirement as string) || '',
       initialNotes: (lead.initialNotes as string) || '',
       leadSource: (lead.leadSource as string) || '',
+      followUpDate: lead.followUpDate
+        ? new Date(lead.followUpDate as string).toISOString().split('T')[0]
+        : '',
     });
     setEditing(true);
   };
@@ -153,7 +164,6 @@ export function LeadDetail({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.push('/admin/leads')}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
@@ -179,7 +189,6 @@ export function LeadDetail({ id }: { id: string }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left — Lead Info */}
         <div className="lg:col-span-2 space-y-4">
           <Card>
             <CardHeader>
@@ -189,18 +198,20 @@ export function LeadDetail({ id }: { id: string }) {
               {editing ? (
                 <>
                   {[
-                    { key: 'customerName', label: 'Customer Name' },
-                    { key: 'contactNumber', label: 'Phone' },
-                    { key: 'email', label: 'Email' },
-                    { key: 'city', label: 'City' },
-                    { key: 'state', label: 'State' },
-                    { key: 'propertyType', label: 'Property Type' },
-                    { key: 'budgetRange', label: 'Budget Range' },
-                    { key: 'leadSource', label: 'Lead Source' },
-                  ].map(({ key, label }) => (
+                    { key: 'customerName', label: 'Customer Name', type: 'text' },
+                    { key: 'contactNumber', label: 'Phone', type: 'text' },
+                    { key: 'email', label: 'Email', type: 'text' },
+                    { key: 'city', label: 'City', type: 'text' },
+                    { key: 'state', label: 'State', type: 'text' },
+                    { key: 'propertyType', label: 'Property Type', type: 'text' },
+                    { key: 'budgetRange', label: 'Budget Range', type: 'text' },
+                    { key: 'leadSource', label: 'Lead Source', type: 'text' },
+                    { key: 'followUpDate', label: 'Follow Up Date', type: 'date' },
+                  ].map(({ key, label, type }) => (
                     <div key={key} className="space-y-1">
                       <Label className="text-xs text-muted-foreground">{label}</Label>
                       <Input
+                        type={type}
                         value={editForm[key] || ''}
                         onChange={e => setEditForm(p => ({ ...p, [key]: e.target.value }))}
                       />
@@ -255,7 +266,6 @@ export function LeadDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {/* Status Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Status</CardTitle>
@@ -311,13 +321,11 @@ export function LeadDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {/* Team Management Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Team</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Primary Assignee */}
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Primary Assignee</Label>
                 <Select
@@ -334,8 +342,6 @@ export function LeadDetail({ id }: { id: string }) {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Collaborators */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground">Collaborators</Label>
                 <div className="flex flex-wrap gap-2">
@@ -355,8 +361,6 @@ export function LeadDetail({ id }: { id: string }) {
                     </Badge>
                   ))}
                 </div>
-
-                {/* Add collaborator */}
                 {availableToAdd.length > 0 && (
                   <div className="flex gap-2 items-center">
                     <Select onValueChange={v => void handleAddTeamMember(v)}>
@@ -379,7 +383,6 @@ export function LeadDetail({ id }: { id: string }) {
             </CardContent>
           </Card>
 
-          {/* Meetings */}
           {meetings.length > 0 && (
             <Card>
               <CardHeader>
@@ -401,7 +404,6 @@ export function LeadDetail({ id }: { id: string }) {
           )}
         </div>
 
-        {/* Right — WhatsApp-style Chat Box */}
         <div className="flex flex-col" style={{ height: '600px' }}>
           <Card className="flex flex-col h-full">
             <CardHeader className="pb-2 border-b flex-shrink-0">
@@ -452,7 +454,6 @@ export function LeadDetail({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Schedule Meeting Modal */}
       <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
         <DialogContent>
           <DialogHeader>
@@ -500,4 +501,3 @@ export function LeadDetail({ id }: { id: string }) {
     </div>
   );
 }
-
