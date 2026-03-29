@@ -5,15 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Flame, Thermometer, Snowflake } from 'lucide-react';
-import { parseMessage } from '@/utils/string.utils';
+import { Search, Plus } from 'lucide-react';
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—';
@@ -25,26 +23,6 @@ function formatDate(value: string | null | undefined) {
     month: 'short',
     year: 'numeric',
   });
-}
-
-function TemperatureBadge({ value }: { value: string | null | undefined }) {
-  if (!value) return <span className="text-muted-foreground">—</span>;
-  const icons: Record<string, React.ReactElement> = {
-    HOT: <Flame className="h-3 w-3" />,
-    WARM: <Thermometer className="h-3 w-3" />,
-    COLD: <Snowflake className="h-3 w-3" />,
-  };
-  const colors: Record<string, string> = {
-    HOT: 'text-red-500 border-red-500/30 bg-red-500/10',
-    WARM: 'text-yellow-500 border-yellow-500/30 bg-yellow-500/10',
-    COLD: 'text-blue-400 border-blue-400/30 bg-blue-400/10',
-  };
-  return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${colors[value] ?? ''}`}>
-      {icons[value]}
-      {parseMessage(value)}
-    </span>
-  );
 }
 
 function LeadsTableSkeleton() {
@@ -99,6 +77,15 @@ export function LeadsTable() {
       temperature: 'WARM',
       platform: 'Meta Ads',
     });
+  };
+
+  const handleInlineUpdate = async (id: string, field: string, value: string) => {
+    await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+    void refetch();
   };
 
   return (
@@ -206,13 +193,60 @@ export function LeadsTable() {
                     <TableCell className="text-muted-foreground">{(lead.contactNumber as string) || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{(lead.city as string) || '—'}</TableCell>
                     <TableCell className="text-muted-foreground">{(lead.propertyType as string) || '—'}</TableCell>
-                    <TableCell><TemperatureBadge value={lead.temperature as string} /></TableCell>
-                    <TableCell>
-                      {lead.status ? <Badge variant="outline">{parseMessage(lead.status as string)}</Badge> : '—'}
+
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Select
+                        value={(lead.temperature as string) || ''}
+                        onValueChange={v => handleInlineUpdate(lead.id as string, 'temperature', v)}
+                      >
+                        <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="HOT">🔥 Hot</SelectItem>
+                          <SelectItem value="WARM">🌡️ Warm</SelectItem>
+                          <SelectItem value="COLD">❄️ Cold</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
-                    <TableCell>
-                      {lead.activeStatus ? <Badge variant="secondary">{parseMessage(lead.activeStatus as string)}</Badge> : '—'}
+
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Select
+                        value={(lead.status as string) || ''}
+                        onValueChange={v => handleInlineUpdate(lead.id as string, 'status', v)}
+                      >
+                        <SelectTrigger className="h-7 w-[140px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="NEW">New</SelectItem>
+                          <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
+                          <SelectItem value="NOT_ANSWERED">Not Answered</SelectItem>
+                          <SelectItem value="MEETING_FIXED">Meeting Fixed</SelectItem>
+                          <SelectItem value="CONTACT_IN_FUTURE">Contact in Future</SelectItem>
+                          <SelectItem value="CLOSED_WON">Closed Won</SelectItem>
+                          <SelectItem value="CLOSED_LOST">Closed Lost</SelectItem>
+                          <SelectItem value="JUNK">Junk</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
+
+                    <TableCell onClick={e => e.stopPropagation()}>
+                      <Select
+                        value={(lead.activeStatus as string) || ''}
+                        onValueChange={v => handleInlineUpdate(lead.id as string, 'activeStatus', v)}
+                      >
+                        <SelectTrigger className="h-7 w-[100px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ACTIVE">Active</SelectItem>
+                          <SelectItem value="INACTIVE">Inactive</SelectItem>
+                          <SelectItem value="HOLD">Hold</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
                     <TableCell className="text-right text-muted-foreground">{formatDate(lead.createdAt as string)}</TableCell>
                   </TableRow>
                 ))}
