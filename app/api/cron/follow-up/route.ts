@@ -11,27 +11,23 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Get today in IST as a simple date string
     const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
     const startOfDay = new Date(nowIST);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(nowIST);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Find ALL leads with follow-up date set (for debugging)
     const allLeadsWithFollowUp = await prisma.lead.findMany({
       where: { followUpDate: { not: null } },
       select: { id: true, customerName: true, followUpDate: true },
     });
 
-    // Find leads with follow-up date today
     const leads = await prisma.lead.findMany({
       where: {
         followUpDate: {
           gte: new Date(startOfDay.getTime() - 24 * 60 * 60 * 1000),
           lte: new Date(endOfDay.getTime() + 24 * 60 * 60 * 1000),
         },
-        activeStatus: { not: "INACTIVE" },
       },
       include: {
         assignedUser: {
@@ -55,8 +51,8 @@ export async function GET(req: NextRequest) {
 
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure: false,
+      port: 465,
+      secure: true,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
