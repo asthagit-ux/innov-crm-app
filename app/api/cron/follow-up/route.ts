@@ -5,34 +5,33 @@ import nodemailer from "nodemailer";
 const CRON_SECRET = process.env.CRON_SECRET || "innov_cron_2024";
 
 export async function GET(req: NextRequest) {
-  // Security check
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    // Get today's date range in IST
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istNow = new Date(now.getTime() + istOffset);
-    const startOfDay = new Date(istNow);
+    // Get today in IST as a simple date string
+    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const startOfDay = new Date(nowIST);
     startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(istNow);
+    const endOfDay = new Date(nowIST);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Convert back to UTC for DB query
-    const utcStart = new Date(startOfDay.getTime() - istOffset);
-    const utcEnd = new Date(endOfDay.getTime() - istOffset);
+    // Find ALL leads with follow-up date set (for debugging)
+    const allLeadsWithFollowUp = await prisma.lead.findMany({
+      where: { followUpDate: { not: null } },
+      select: { id: true, customerName: true, followUpDate: true },
+    });
 
     // Find leads with follow-up date today
     const leads = await prisma.lead.findMany({
       where: {
         followUpDate: {
-          gte: utcStart,
-          lte: utcEnd,
+          gte: new Date(startOfDay.getTime() - 24 * 60 * 60 * 1000),
+          lte: new Date(endOfDay.getTime() + 24 * 60 * 60 * 1000),
         },
-        activeStatus: "ACTIVE",
+        activeStatus: { not: "INACTIVE" },
       },
       include: {
         assignedUser: {
@@ -42,10 +41,18 @@ export async function GET(req: NextRequest) {
     });
 
     if (leads.length === 0) {
-      return NextResponse.json({ success: true, message: "No follow-ups today" });
+      return NextResponse.json({
+        success: true,
+        message: "No follow-ups today",
+        debug: {
+          nowIST: nowIST.toISOString(),
+          startOfDay: startOfDay.toISOString(),
+          endOfDay: endOfDay.toISOString(),
+          allLeadsWithFollowUp,
+        },
+      });
     }
 
-    // Set up email transporter
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
@@ -70,24 +77,20 @@ export async function GET(req: NextRequest) {
         subject: `📅 Follow-up Reminder: ${lead.customerName}`,
         html: `
           <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #0f0f0f; color: #fff; border-radius: 12px;">
-            <div style="margin-bottom: 24px;">
-              <h1 style="font-size: 20px; color: #c9a84c; margin: 0;">📅 Follow-up Reminder</h1>
-              <p style="color: #888; margin: 4px 0 0;">Innov CRM · ${new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            </div>
-            <p style="margin: 0 0 16px;">Hi ${recipientName},</p>
-            <p style="margin: 0 0 16px;">You have a follow-up scheduled today with:</p>
+            <h1 style="font-size: 20px; color: #c9a84c; margin: 0 0 8px;">📅 Follow-up Reminder</h1>
+            <p style="color: #888; margin: 0 0 16px;">Innov CRM</p>
+            <p>Hi ${recipientName},</p>
+            <p>You have a follow-up scheduled today with:</p>
             <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
               <p style="margin: 0 0 8px;"><strong>Customer:</strong> ${lead.customerName}</p>
               <p style="margin: 0 0 8px;"><strong>Phone:</strong> ${lead.contactNumber || '—'}</p>
               <p style="margin: 0 0 8px;"><strong>City:</strong> ${lead.city || '—'}</p>
-              <p style="margin: 0 0 8px;"><strong>Property:</strong> ${lead.propertyType || '—'}</p>
               <p style="margin: 0;"><strong>Budget:</strong> ${lead.budgetRange || '—'}</p>
             </div>
             <a href="https://innov-crm-app.vercel.app/admin/leads/${lead.id}" 
                style="display: inline-block; background: #c9a84c; color: #000; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
               View Lead →
             </a>
-            <p style="margin: 24px 0 0; color: #555; font-size: 12px;">Innov CRM · innov-crm-app.vercel.app</p>
           </div>
         `,
       });
