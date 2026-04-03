@@ -15,22 +15,23 @@ export async function GET(req: NextRequest) {
   // Step 1: Check if DEFAULT_USER_ID exists in DB
   const defaultUserId = process.env.DEFAULT_USER_ID;
   let userExists = false;
-  let userRecord = null;
+  let userRecord: { id: string; email: string } | { error: string } | null = null;
   try {
-    userRecord = await prisma.user.findUnique({ where: { id: defaultUserId! } });
-    userExists = !!userRecord;
+    const found = await prisma.user.findUnique({ where: { id: defaultUserId! } });
+    userExists = !!found;
+    if (found) userRecord = { id: found.id, email: found.email };
   } catch (e) {
     userRecord = { error: String(e) };
   }
 
   // Step 2: Call Graph API and return raw response
-  let graphApiResponse = null;
-  let graphApiError = null;
+  let graphApiResponse: Record<string, unknown> | null = null;
+  let graphApiError: string | null = null;
   try {
     const response = await fetch(
       `https://graph.facebook.com/v19.0/${leadgenId}?access_token=${accessToken}`
     );
-    graphApiResponse = await response.json();
+    graphApiResponse = await response.json() as Record<string, unknown>;
   } catch (e) {
     graphApiError = String(e);
   }
@@ -39,12 +40,12 @@ export async function GET(req: NextRequest) {
     debug: {
       defaultUserId,
       userExistsInDb: userExists,
-      userRecord: userRecord ? { id: (userRecord as any).id, email: (userRecord as any).email } : null,
+      userRecord,
       graphApi: {
         url: `https://graph.facebook.com/v19.0/${leadgenId}`,
         response: graphApiResponse,
         error: graphApiError,
-        hasFieldData: !!(graphApiResponse as any)?.field_data,
+        hasFieldData: !!graphApiResponse?.field_data,
       },
     },
   });
