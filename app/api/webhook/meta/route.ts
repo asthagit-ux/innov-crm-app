@@ -12,7 +12,6 @@ export async function GET(req: NextRequest) {
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
-
   return new NextResponse("Forbidden", { status: 403 });
 }
 
@@ -25,12 +24,14 @@ export async function POST(req: NextRequest) {
         for (const change of entry.changes) {
           if (change.field === "leadgen") {
             const leadgenId = change.value.leadgen_id;
-
             const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
+
             const response = await fetch(
               `https://graph.facebook.com/v19.0/${leadgenId}?access_token=${accessToken}`
             );
             const leadData = await response.json();
+
+            console.log("📋 Raw Meta lead data:", JSON.stringify(leadData));
 
             if (leadData.field_data) {
               const fields: Record<string, string> = {};
@@ -38,10 +39,18 @@ export async function POST(req: NextRequest) {
                 fields[field.name] = field.values[0];
               }
 
+              console.log("📋 Parsed fields:", JSON.stringify(fields));
+
               await prisma.lead.create({
                 data: {
                   customerName: fields["full_name"] || fields["name"] || "Unknown",
                   contactNumber: fields["phone_number"] || fields["phone"] || "",
+                  city: fields["city"] || "",
+                  propertyType:
+                    fields["your_property_type"] ||
+                    fields["property_type"] ||
+                    fields["what_type_of_prope] ||
+                    "",
                   platform: "Meta",
                   status: "NEW",
                   leadCreatedDate: new Date(),
