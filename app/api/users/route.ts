@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 
@@ -8,7 +9,8 @@ const createUserSchema = z.object({
   email: z.email('Please provide a valid email address.').transform((value) =>
     value.trim().toLowerCase()
   ),
-  category: z.literal('ADMIN'),
+  password: z.string().min(6, 'Password must be at least 6 characters.'),
+  role: z.enum(['ADMIN', 'USER']).default('USER'),
 });
 
 const updateUserSchema = z.object({
@@ -148,7 +150,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, email } = parsed.data;
+    const { name, email, password, role } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -162,27 +164,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const adminRolePermission = await prisma.rolePermission.findFirst({
-      where: { role: 'ADMIN' },
+    const rolePermission = await prisma.rolePermission.findFirst({
+      where: { role },
       select: { id: true },
     });
 
-    if (!adminRolePermission) {
+    if (!rolePermission) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Admin role is not configured yet.',
-          code: 'ADMIN_ROLE_NOT_CONFIGURED',
+          error: `${role} role is not configured yet.`,
+          code: 'ROLE_NOT_CONFIGURED',
         },
         { status: 500 }
       );
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        rolePermissionId: adminRolePermission.id,
+        emailVerified: true,
+        rolePermissionId: rolePermission.id,
+        accounts: {
+          create: {
+            accountId: email,
+            providerId: 'credential',
+            password: hashedPassword,
+          },
+        },
       },
       select: {
         id: true,
@@ -198,7 +210,7 @@ export async function POST(request: Request) {
         data: {
           user: {
             ...user,
-            role: 'ADMIN',
+            role,
           },
         },
       },

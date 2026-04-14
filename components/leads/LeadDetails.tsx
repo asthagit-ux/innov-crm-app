@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Calendar, X, UserPlus } from 'lucide-react';
+import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—';
@@ -47,6 +48,8 @@ export function LeadDetail({ id }: { id: string }) {
   const scheduleMeeting = useScheduleMeeting(id);
 
   const [comment, setComment] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ agenda: '', meetingDate: '', meetingTime: '' });
   const [editing, setEditing] = useState(false);
@@ -100,8 +103,11 @@ export function LeadDetail({ id }: { id: string }) {
       city: (lead.city as string) || '',
       state: (lead.state as string) || '',
       propertyType: (lead.propertyType as string) || '',
-      briefScope: (lead.briefScope as string) || '',
+      serviceRequired: (lead.serviceRequired as string) || '',
       budgetRange: (lead.budgetRange as string) || '',
+      propertySize: (lead.propertySize as string) || '',
+      preferredCallTime: (lead.preferredCallTime as string) || '',
+      briefScope: (lead.briefScope as string) || '',
       requirement: (lead.requirement as string) || '',
       initialNotes: (lead.initialNotes as string) || '',
       leadSource: (lead.leadSource as string) || '',
@@ -132,6 +138,19 @@ export function LeadDetail({ id }: { id: string }) {
     setShowMeetingModal(false);
     setMeetingForm({ agenda: '', meetingDate: '', meetingTime: '' });
     void refetch();
+  };
+
+  const handleDeleteLead = async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Lead deleted.');
+      router.push('/admin/leads');
+    } catch {
+      toast.error('Failed to delete lead.');
+      setDeleting(false);
+    }
   };
 
   const handleAddTeamMember = async (userId: string) => {
@@ -176,7 +195,12 @@ export function LeadDetail({ id }: { id: string }) {
             <Calendar className="h-4 w-4 mr-2" /> Schedule Meeting
           </Button>
           {!editing ? (
-            <Button size="sm" onClick={handleEdit}>Edit Lead</Button>
+            <>
+              <Button size="sm" onClick={handleEdit}>Edit Lead</Button>
+              <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
+                <Trash2 className="h-4 w-4 mr-2" /> Delete
+              </Button>
+            </>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
@@ -204,7 +228,10 @@ export function LeadDetail({ id }: { id: string }) {
                     { key: 'city', label: 'City', type: 'text' },
                     { key: 'state', label: 'State', type: 'text' },
                     { key: 'propertyType', label: 'Property Type', type: 'text' },
+                    { key: 'serviceRequired', label: 'Looking For', type: 'text' },
                     { key: 'budgetRange', label: 'Budget Range', type: 'text' },
+                    { key: 'propertySize', label: 'Property Size', type: 'text' },
+                    { key: 'preferredCallTime', label: 'Preferred Call Time', type: 'text' },
                     { key: 'leadSource', label: 'Lead Source', type: 'text' },
                     { key: 'followUpDate', label: 'Follow Up Date', type: 'date' },
                   ].map(({ key, label, type }) => (
@@ -242,9 +269,13 @@ export function LeadDetail({ id }: { id: string }) {
                     { label: 'Email', value: lead.email as string },
                     { label: 'City', value: lead.city as string },
                     { label: 'State', value: lead.state as string },
+                    { label: 'Platform', value: lead.platform as string },
+                    { label: 'Lead Source', value: lead.leadSource as string },
                     { label: 'Property Type', value: lead.propertyType as string },
+                    { label: 'Looking For', value: lead.serviceRequired as string },
                     { label: 'Budget Range', value: lead.budgetRange as string },
-                    { label: 'Lead Source', value: (lead.leadSource as string) || (lead.platform as string) },
+                    { label: 'Property Size', value: lead.propertySize as string },
+                    { label: 'Preferred Call Time', value: lead.preferredCallTime as string },
                     { label: 'Created Date', value: formatDate(lead.leadCreatedDate as string) },
                     { label: 'Follow Up Date', value: formatDate(lead.followUpDate as string) },
                   ].map(({ label, value }) => (
@@ -453,6 +484,23 @@ export function LeadDetail({ id }: { id: string }) {
           </Card>
         </div>
       </div>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Lead</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete <strong>{lead.customerName as string}</strong>? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={() => void handleDeleteLead()} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete Lead'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
         <DialogContent>

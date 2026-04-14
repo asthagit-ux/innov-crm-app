@@ -1,265 +1,181 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2Icon } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSeparator,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export function LoginForm() {
-  const OTP_RESEND_SECONDS = 120;
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpRequested, setOtpRequested] = useState(false);
-  const [requestingOtp, setRequestingOtp] = useState(false);
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
-  const [resendTimerSeconds, setResendTimerSeconds] = useState(0);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!otpRequested || resendTimerSeconds <= 0) {
-      return;
-    }
-    const timer = window.setInterval(() => {
-      setResendTimerSeconds((previousSeconds) =>
-        previousSeconds > 0 ? previousSeconds - 1 : 0,
-      );
-    }, 1000);
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [otpRequested, resendTimerSeconds]);
-
-  function formatCountdown(totalSeconds: number) {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  }
-
-  async function ensureEmailExists(emailToCheck: string) {
-    const response = await fetch("/api/auth/check-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: emailToCheck }),
-    });
-    let result: {
-      success?: boolean;
-      error?: string;
-      exists?: boolean;
-      code?: string;
-      prismaCode?: string;
-    } = {};
-    try {
-      const text = await response.text();
-      if (text) {
-        result = JSON.parse(text) as typeof result;
-      }
-    } catch {
-      throw new Error("Could not validate email.");
-    }
-    if (!response.ok || !result.success) {
-      const baseMessage = result.error ?? "Could not validate email.";
-      const debugCode = result.code ? ` [${result.code}]` : "";
-      const prismaHint = result.prismaCode ? ` (${result.prismaCode})` : "";
-      throw new Error(`${baseMessage}${debugCode}${prismaHint}`);
-    }
-    return Boolean(result.exists);
-  }
-
-  async function sendOtpForEmail(emailToUse: string) {
-    const { error: otpRequestError } = await authClient.emailOtp.sendVerificationOtp({
-      email: emailToUse,
-      type: "sign-in",
-    });
-    if (otpRequestError) {
-      throw new Error(otpRequestError.message ?? "Could not send OTP.");
-    }
-  }
-
-  async function handleRequestOtp(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setRequestingOtp(true);
-    const normalizedEmail = email.trim().toLowerCase();
-    try {
-      const exists = await ensureEmailExists(normalizedEmail);
-      if (!exists) {
-        toast.error("No account found for this email.");
-        return;
-      }
-      await sendOtpForEmail(normalizedEmail);
-      setEmail(normalizedEmail);
-      setOtpRequested(true);
-      setResendTimerSeconds(OTP_RESEND_SECONDS);
-      toast.success("Check your email for the 6-digit code.");
-    } catch (requestError) {
-      const message = requestError instanceof Error ? requestError.message : "Could not send OTP.";
-      toast.error(message);
-    } finally {
-      setRequestingOtp(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setVerifyingOtp(true);
-    const { data, error: signInError } = await authClient.signIn.emailOtp({
-      email,
-      otp,
+    setLoading(true);
+    const { authClient } = await import("@/lib/auth-client");
+    const { data, error } = await authClient.signIn.email({
+      email: email.trim().toLowerCase(),
+      password,
     });
-    setVerifyingOtp(false);
-    if (signInError) {
-      toast.error(signInError.message ?? "Invalid OTP.");
+    setLoading(false);
+    if (error) {
+      toast.error(error.message ?? "Invalid email or password.");
       return;
     }
     if (data) {
-      toast.success("Signed in successfully");
       router.push("/admin/dashboard");
       router.refresh();
     }
   }
 
   return (
-    <Card className="w-full max-w-sm border-0 bg-card shadow-lg">
-      <CardHeader className="space-y-1.5 pb-4 text-center">
-        <CardTitle className="text-2xl font-semibold tracking-tight text-center">
-          Sign in
-        </CardTitle>
-        <CardDescription className="text-muted-foreground text-center">
-          Sign in with a one-time passcode sent to your email
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={otpRequested ? handleVerifyOtp : handleRequestOtp}>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-              disabled={requestingOtp || verifyingOtp || otpRequested}
-              className="h-10"
-            />
+    <div style={{ width: "100%", maxWidth: "400px" }}>
+      {/* Title */}
+      <h1 style={{
+        fontSize: "2.75rem",
+        fontWeight: 800,
+        color: "#1f2937",
+        lineHeight: 1.15,
+        marginBottom: "0.75rem",
+      }}>
+        Sign in to your account
+      </h1>
+      <p style={{ fontSize: "1rem", color: "#9ca3af", marginBottom: "2.5rem" }}>
+        Enter your credentials to access Innov CRM
+      </p>
+
+      <form onSubmit={handleSignIn}>
+        {/* Email */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <label style={{
+            display: "block",
+            fontSize: "0.9375rem",
+            fontWeight: 600,
+            color: "#374151",
+            marginBottom: "0.5rem",
+          }}>
+            Email
+          </label>
+          <input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            autoComplete="email"
+            style={{
+              width: "100%",
+              padding: "0.875rem 1rem",
+              fontSize: "1rem",
+              backgroundColor: "#eef2ff",
+              border: "none",
+              borderRadius: "10px",
+              outline: "none",
+              color: "#1f2937",
+              boxSizing: "border-box",
+              transition: "box-shadow 0.2s",
+            }}
+            onFocus={e => e.target.style.boxShadow = "0 0 0 3px rgba(124,58,237,0.15)"}
+            onBlur={e => e.target.style.boxShadow = "none"}
+          />
+        </div>
+
+        {/* Password */}
+        <div style={{ marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <label style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#374151" }}>
+              Password
+            </label>
+            <span style={{ fontSize: "0.875rem", color: "#7c3aed", fontWeight: 500, cursor: "pointer" }}>
+              Forgot password?
+            </span>
           </div>
-          {otpRequested && (
-            <div className="space-y-4">
-              <div className="space-y-1 text-center">
-                <Label htmlFor="otp" className="text-center">
-                  Enter verification code
-                </Label>
-                <p className="text-muted-foreground text-sm">
-                  Enter the 6-digit code from your inbox
-                </p>
-              </div>
-              <InputOTP
-                id="otp"
-                maxLength={6}
-                value={otp}
-                onChange={(value) => setOtp(value)}
-                disabled={verifyingOtp}
-                containerClassName="justify-center"
-              >
-                <InputOTPGroup className="gap-2">
-                  <InputOTPSlot index={0} className="h-11 w-11 text-base" />
-                  <InputOTPSlot index={1} className="h-11 w-11 text-base" />
-                  <InputOTPSlot index={2} className="h-11 w-11 text-base" />
-                  <InputOTPSeparator />
-                  <InputOTPSlot index={3} className="h-11 w-11 text-base" />
-                  <InputOTPSlot index={4} className="h-11 w-11 text-base" />
-                  <InputOTPSlot index={5} className="h-11 w-11 text-base" />
-                </InputOTPGroup>
-              </InputOTP>
-              <div className="flex flex-col items-center gap-1">
-                <span className="text-muted-foreground text-sm">
-                  {resendTimerSeconds > 0
-                    ? `Request a new code in ${formatCountdown(resendTimerSeconds)}`
-                    : "Didn't receive the code?"}
-                </span>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-sm font-normal"
-                  disabled={requestingOtp || verifyingOtp || resendTimerSeconds > 0}
-                  onClick={async () => {
-                    setRequestingOtp(true);
-                    try {
-                      await sendOtpForEmail(email);
-                      setResendTimerSeconds(OTP_RESEND_SECONDS);
-                      toast.success("A new code has been sent.");
-                    } catch (requestError) {
-                      const message = requestError instanceof Error ? requestError.message : "Could not resend OTP.";
-                      toast.error(message);
-                    } finally {
-                      setRequestingOtp(false);
-                    }
-                  }}
-                >
-                  {requestingOtp ? "Sending..." : "Resend code"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-col gap-4 pt-2">
-          <Button
-            type="submit"
-            className="w-full h-10"
-            disabled={
-              requestingOtp ||
-              verifyingOtp ||
-              !email ||
-              (otpRequested && otp.length !== 6)
-            }
-          >
-            {requestingOtp || verifyingOtp ? (
-              <>
-                <Loader2Icon className="size-4 animate-spin" />
-                {otpRequested ? "Verifying..." : "Sending OTP..."}
-              </>
-            ) : (
-              <>{otpRequested ? "Verify OTP" : "Send OTP"}</>
-            )}
-          </Button>
-          {otpRequested && (
-            <div className="flex w-full items-center justify-center">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 w-full"
-                disabled={requestingOtp || verifyingOtp}
-                onClick={() => {
-                  setOtp("");
-                  setOtpRequested(false);
-                  setResendTimerSeconds(0);
-                }}
-              >
-                Change email
-              </Button>
-            </div>
-          )}
-        </CardFooter>
+          <div style={{ position: "relative" }}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
+              autoComplete="current-password"
+              style={{
+                width: "100%",
+                padding: "0.875rem 3rem 0.875rem 1rem",
+                fontSize: "1rem",
+                backgroundColor: "#eef2ff",
+                border: "none",
+                borderRadius: "10px",
+                outline: "none",
+                color: "#1f2937",
+                boxSizing: "border-box",
+                transition: "box-shadow 0.2s",
+              }}
+              onFocus={e => e.target.style.boxShadow = "0 0 0 3px rgba(124,58,237,0.15)"}
+              onBlur={e => e.target.style.boxShadow = "none"}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((p) => !p)}
+              disabled={loading}
+              style={{
+                position: "absolute",
+                right: "1rem",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#6b7280",
+                display: "flex",
+                alignItems: "center",
+                padding: 0,
+              }}
+            >
+              {showPassword ? (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zM10 14.5c-2.48 0-4.5-2.02-4.5-4.5S7.52 5.5 10 5.5 14.5 7.52 14.5 10 12.48 14.5 10 14.5zm0-7.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                  <path d="M2.5 2.5L17.5 17.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zM10 14.5c-2.48 0-4.5-2.02-4.5-4.5S7.52 5.5 10 5.5 14.5 7.52 14.5 10 12.48 14.5 10 14.5zm0-7.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Button */}
+        <button
+          type="submit"
+          disabled={loading || !email || !password}
+          style={{
+            width: "100%",
+            padding: "0.9375rem 1.5rem",
+            fontSize: "1rem",
+            fontWeight: 600,
+            color: "#ffffff",
+            backgroundColor: loading || !email || !password ? "#9ca3af" : "#6b7280",
+            border: "none",
+            borderRadius: "10px",
+            cursor: loading || !email || !password ? "not-allowed" : "pointer",
+            marginTop: "0.5rem",
+            transition: "background-color 0.2s",
+          }}
+          onMouseEnter={e => { if (!loading && email && password) (e.target as HTMLButtonElement).style.backgroundColor = "#4b5563"; }}
+          onMouseLeave={e => { if (!loading && email && password) (e.target as HTMLButtonElement).style.backgroundColor = "#6b7280"; }}
+        >
+          {loading ? "Signing in..." : "Sign in →"}
+        </button>
       </form>
-    </Card>
+
+      <p style={{ marginTop: "2rem", fontSize: "0.875rem", color: "#9ca3af", textAlign: "center" }}>
+        Need access? Contact your administrator.
+      </p>
+    </div>
   );
 }

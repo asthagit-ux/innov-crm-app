@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 function formatDate(value: string | null | undefined) {
   if (!value) return '—';
@@ -22,6 +24,21 @@ function formatDate(value: string | null | undefined) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  });
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
   });
 }
 
@@ -42,6 +59,8 @@ export function LeadsTable() {
   const [temperature, setTemperature] = useState('');
   const [activeStatus, setActiveStatus] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [newLead, setNewLead] = useState({
     customerName: '',
     contactNumber: '',
@@ -77,6 +96,22 @@ export function LeadsTable() {
       temperature: 'WARM',
       platform: 'Meta Ads',
     });
+  };
+
+  const handleDeleteLead = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/leads/${deleteId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Lead deleted.');
+      setDeleteId(null);
+      void refetch();
+    } catch {
+      toast.error('Failed to delete lead.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleInlineUpdate = async (id: string, field: string, value: string) => {
@@ -150,13 +185,12 @@ export function LeadsTable() {
         </Select>
       </div>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            {isLoading ? 'Loading...' : `${leads.length} lead${leads.length !== 1 ? 's' : ''} found`}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <p className="text-sm font-medium text-muted-foreground">
+        {isLoading ? 'Loading...' : `${leads.length} lead${leads.length !== 1 ? 's' : ''} found`}
+      </p>
+
+      <Card className="py-0 gap-0 overflow-hidden">
+        <CardContent className="p-0">
           {isLoading ? (
             <LeadsTableSkeleton />
           ) : isError ? (
@@ -169,17 +203,19 @@ export function LeadsTable() {
               No leads found. Add your first lead!
             </div>
           ) : (
-            <Table>
+            <Table className="table-fixed w-full [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>City</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Temp</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead className="text-right">Created</TableHead>
+                  <TableHead className="w-[180px]">Customer</TableHead>
+                  <TableHead className="w-[140px]">Phone</TableHead>
+                  <TableHead className="w-[110px]">City</TableHead>
+                  <TableHead className="w-[130px]">Property</TableHead>
+                  <TableHead className="w-[180px]">Source</TableHead>
+                  <TableHead className="w-[90px]">Temp</TableHead>
+                  <TableHead className="w-[150px]">Status</TableHead>
+                  <TableHead className="w-[110px]">Active</TableHead>
+                  <TableHead className="w-[150px] text-right">Created</TableHead>
+                  <TableHead className="w-[48px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -189,17 +225,29 @@ export function LeadsTable() {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => router.push(`/admin/leads/${lead.id}`)}
                   >
-                    <TableCell className="font-medium">{(lead.customerName as string) || '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{(lead.contactNumber as string) || '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{(lead.city as string) || '—'}</TableCell>
-                    <TableCell className="text-muted-foreground">{(lead.propertyType as string) || '—'}</TableCell>
+                    <TableCell className="font-medium truncate max-w-0">{(lead.customerName as string) || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground truncate max-w-0">{(lead.contactNumber as string) || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground truncate max-w-0">{(lead.city as string) || '—'}</TableCell>
+                    <TableCell className="text-muted-foreground truncate max-w-0">{(lead.propertyType as string) || '—'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {(lead.leadSource as string) && (
+                          <span className="text-sm text-muted-foreground truncate">{lead.leadSource as string}</span>
+                        )}
+                        {(lead.platform as string) && (
+                          <Badge variant="outline" className="text-xs shrink-0">
+                            {lead.platform as string}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
 
                     <TableCell onClick={e => e.stopPropagation()}>
                       <Select
                         value={(lead.temperature as string) || ''}
                         onValueChange={v => handleInlineUpdate(lead.id as string, 'temperature', v)}
                       >
-                        <SelectTrigger className="h-7 w-[90px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
                           <SelectValue placeholder="—" />
                         </SelectTrigger>
                         <SelectContent>
@@ -215,7 +263,7 @@ export function LeadsTable() {
                         value={(lead.status as string) || ''}
                         onValueChange={v => handleInlineUpdate(lead.id as string, 'status', v)}
                       >
-                        <SelectTrigger className="h-7 w-[140px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
                           <SelectValue placeholder="—" />
                         </SelectTrigger>
                         <SelectContent>
@@ -236,7 +284,7 @@ export function LeadsTable() {
                         value={(lead.activeStatus as string) || ''}
                         onValueChange={v => handleInlineUpdate(lead.id as string, 'activeStatus', v)}
                       >
-                        <SelectTrigger className="h-7 w-[100px] border-0 bg-transparent p-0 text-xs focus:ring-0">
+                        <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
                           <SelectValue placeholder="—" />
                         </SelectTrigger>
                         <SelectContent>
@@ -247,7 +295,16 @@ export function LeadsTable() {
                       </Select>
                     </TableCell>
 
-                    <TableCell className="text-right text-muted-foreground">{formatDate(lead.createdAt as string)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground text-xs">{formatDateTime(lead.createdAt as string)}</TableCell>
+                    <TableCell onClick={e => e.stopPropagation()} className="text-right">
+                      <button
+                        onClick={() => setDeleteId(lead.id as string)}
+                        className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        title="Delete lead"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -255,6 +312,23 @@ export function LeadsTable() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={!!deleteId} onOpenChange={open => { if (!open) setDeleteId(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Lead</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete this lead? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDeleteLead} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent>

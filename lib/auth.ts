@@ -1,9 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP } from "better-auth/plugins/email-otp";
+import bcrypt from "bcryptjs";
 import prisma from "./prisma";
-import { sendOtpEmail } from "./otp-email";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -28,27 +27,14 @@ export const auth = betterAuth({
   verification: {
     modelName: "Verification",
   },
-  plugins: [
-    emailOTP({
-      disableSignUp: true,
-      expiresIn: 300,
-      sendVerificationOTP: async ({ email, otp, type }) => {
-        if (type !== "sign-in") {
-          return;
-        }
-        const existingUser = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        });
-        if (!existingUser) {
-          throw new Error("No account found for this email.");
-        }
-        await sendOtpEmail({
-          email,
-          otp,
-        });
-      },
-    }),
-    nextCookies(),
-  ],
+  emailAndPassword: {
+    enabled: true,
+    disableSignUp: true, // no public self-signup; admin creates users
+    password: {
+      hash: (password: string) => bcrypt.hash(password, 10),
+      verify: ({ hash, password }: { hash: string; password: string }) =>
+        bcrypt.compare(password, hash),
+    },
+  },
+  plugins: [nextCookies()],
 });

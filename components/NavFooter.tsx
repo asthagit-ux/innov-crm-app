@@ -1,11 +1,11 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, useState } from 'react';
 import { getCurrentAppConfig } from '@/config/route';
 import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
 import { parseMessage } from '@/utils/string.utils';
-import { Shield, LogOut, ChevronUp, Sun, Moon, Monitor } from 'lucide-react';
+import { Shield, LogOut, ChevronUp, Sun, Moon, Monitor, KeyRound, Eye, EyeOff } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,16 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from './ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { SidebarMenuButton } from './ui/sidebar';
 import { useTheme } from 'next-themes';
@@ -27,6 +37,44 @@ const NavFooter = () => {
   const navigationConfig = getCurrentAppConfig(u);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        toast.error(data.error ?? 'Failed to change password.');
+      } else {
+        toast.success('Password changed successfully.');
+        setShowChangePassword(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+    } catch {
+      toast.error('Something went wrong.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const mounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -107,6 +155,7 @@ const NavFooter = () => {
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger
         className='hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-ring flex w-full items-center gap-2 rounded-lg p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none'
@@ -156,6 +205,14 @@ const NavFooter = () => {
         </DropdownMenuSub>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          onSelect={(e) => { e.preventDefault(); setShowChangePassword(true); }}
+          className='cursor-pointer'
+        >
+          <KeyRound className='h-4 w-4' />
+          <span>Change password</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
           onClick={handleLogout}
           className='cursor-pointer text-red-600 focus:bg-red-50 focus:text-red-600 dark:focus:bg-red-950'
         >
@@ -164,6 +221,89 @@ const NavFooter = () => {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+
+    <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change Password</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={(e) => void handleChangePassword(e)} className='space-y-4 py-2'>
+          <div className='space-y-2'>
+            <Label>Current Password</Label>
+            <div className='relative'>
+              <Input
+                type={showCurrent ? 'text' : 'password'}
+                placeholder='Enter current password'
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+                disabled={changingPassword}
+                className='pr-10'
+              />
+              <button
+                type='button'
+                onClick={() => setShowCurrent((p) => !p)}
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+                tabIndex={-1}
+              >
+                {showCurrent ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+              </button>
+            </div>
+          </div>
+          <div className='space-y-2'>
+            <Label>New Password</Label>
+            <div className='relative'>
+              <Input
+                type={showNew ? 'text' : 'password'}
+                placeholder='Min. 6 characters'
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={6}
+                disabled={changingPassword}
+                className='pr-10'
+              />
+              <button
+                type='button'
+                onClick={() => setShowNew((p) => !p)}
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground'
+                tabIndex={-1}
+              >
+                {showNew ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+              </button>
+            </div>
+          </div>
+          <div className='space-y-2'>
+            <Label>Confirm New Password</Label>
+            <Input
+              type='password'
+              placeholder='Re-enter new password'
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={changingPassword}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='outline'
+              onClick={() => setShowChangePassword(false)}
+              disabled={changingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              type='submit'
+              disabled={changingPassword || !currentPassword || newPassword.length < 6 || !confirmPassword}
+            >
+              {changingPassword ? 'Saving...' : 'Change Password'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 

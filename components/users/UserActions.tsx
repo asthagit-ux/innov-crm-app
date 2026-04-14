@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { EllipsisVertical, Pencil, Trash2 } from 'lucide-react';
+import { Eye, EyeOff, EllipsisVertical, Pencil, Trash2 } from 'lucide-react';
 import {
   useCreateUserMutation,
   useDeleteUserMutation,
@@ -47,7 +47,9 @@ export function UserActions(props: UserActionsProps) {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [name, setName] = useState(props.mode === 'row' ? props.user.name : '');
   const [email, setEmail] = useState(props.mode === 'row' ? props.user.email : '');
-  const [category, setCategory] = useState<'ADMIN'>('ADMIN');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<'ADMIN' | 'USER'>('USER');
 
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
@@ -62,7 +64,8 @@ export function UserActions(props: UserActionsProps) {
         await createMutation.mutateAsync({
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          category,
+          password,
+          role,
         });
       } else {
         await updateMutation.mutateAsync({
@@ -98,9 +101,9 @@ export function UserActions(props: UserActionsProps) {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add admin user</DialogTitle>
+              <DialogTitle>Add user</DialogTitle>
               <DialogDescription>
-                Add a new admin with name, email, and category.
+                Create a new user. They will log in with their email and the password you set.
               </DialogDescription>
             </DialogHeader>
 
@@ -131,23 +134,49 @@ export function UserActions(props: UserActionsProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Category</Label>
+                <Label htmlFor="user-action-password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="user-action-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Min. 6 characters"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                    minLength={6}
+                    disabled={isSubmitting}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((p) => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Role</Label>
                 <Select
-                  value={category}
-                  onValueChange={(value) => setCategory(value as 'ADMIN')}
+                  value={role}
+                  onValueChange={(value) => setRole(value as 'ADMIN' | 'USER')}
                   disabled={isSubmitting}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="USER">User</SelectItem>
                     <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting || !name.trim() || !email.trim()}>
+                <Button type="submit" disabled={isSubmitting || !name.trim() || !email.trim() || password.length < 6}>
                   {isSubmitting ? 'Adding...' : 'Add user'}
                 </Button>
               </DialogFooter>

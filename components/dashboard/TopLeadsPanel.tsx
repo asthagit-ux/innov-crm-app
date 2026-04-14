@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,17 +9,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { parseMessage } from '@/utils/string.utils';
 
-function formatIndiaDate(value: string | null | undefined) {
+function formatIndiaDateTime(value: string | null | undefined) {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
 
-  return date.toLocaleDateString('en-IN', {
+  const datePart = date.toLocaleDateString('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
+  const timePart = date.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${datePart}, ${timePart}`;
 }
 
 export function TopLeadsPanel({
@@ -37,6 +45,7 @@ export function TopLeadsPanel({
   onViewAll: () => void;
 }) {
   const hasLeads = useMemo(() => !!recentLeads?.length, [recentLeads]);
+  const router = useRouter();
 
   return (
     <Card className="border-dashed">
@@ -67,7 +76,11 @@ export function TopLeadsPanel({
               </TableHeader>
               <TableBody>
                 {recentLeads.map((lead) => (
-                  <TableRow key={lead.id}>
+                  <TableRow
+                    key={lead.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => router.push(`/admin/leads/${lead.id}`)}
+                  >
                     <TableCell className="font-medium">
                       {lead.name || 'Unnamed lead'}
                       <div className="text-xs text-muted-foreground">
@@ -91,8 +104,8 @@ export function TopLeadsPanel({
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {formatIndiaDate(lead.createdAt)}
+                    <TableCell className="text-right text-muted-foreground whitespace-nowrap">
+                      {formatIndiaDateTime(lead.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))}
