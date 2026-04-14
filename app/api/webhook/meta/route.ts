@@ -24,14 +24,26 @@ export async function POST(req: NextRequest) {
         for (const change of entry.changes) {
           if (change.field === "leadgen") {
             const leadgenId = change.value.leadgen_id;
+            const formId = change.value.form_id;
             const accessToken = process.env.META_PAGE_ACCESS_TOKEN;
 
-            const response = await fetch(
-              "https://graph.facebook.com/v19.0/" + leadgenId + "?access_token=" + accessToken
-            );
-            const leadData = await response.json();
+            // Fetch lead field data and form name in parallel
+            const [leadResponse, formResponse] = await Promise.all([
+              fetch(
+                "https://graph.facebook.com/v19.0/" + leadgenId + "?fields=field_data,platform&access_token=" + accessToken
+              ),
+              fetch(
+                "https://graph.facebook.com/v19.0/" + formId + "?fields=name&access_token=" + accessToken
+              ),
+            ]);
+
+            const [leadData, formData] = await Promise.all([
+              leadResponse.json(),
+              formResponse.json(),
+            ]);
 
             console.log("Raw Meta lead data:", JSON.stringify(leadData));
+            console.log("Form data:", JSON.stringify(formData));
 
             if (leadData.field_data) {
               const fields: Record<string, string> = {};
@@ -41,20 +53,38 @@ export async function POST(req: NextRequest) {
 
               console.log("Parsed fields:", JSON.stringify(fields));
 
+              const platformMap: Record<string, string> = {
+                fb: "Facebook",
+                ig: "Instagram",
+              };
+              const platform = platformMap[leadData.platform] ?? "Meta";
+
               await prisma.lead.create({
                 data: {
                   customerName: fields["full_name"] || fields["name"] || "Unknown",
                   contactNumber: fields["phone_number"] || fields["phone"] || "",
-                  city: fields["city"] || "",
-                  propertyType: fields["your_property_type"] || fields["property_type"] || "",
-                  platform: "Meta",
+                  city: fields["city"] || fields["street_address"] || "",
+                  propertyType: fields["your_property_type_"] || fields["property_type"] || "",
+                  serviceRequired: fields["you_are_looking_for_?_"] || "",
+                  budgetRange: fields["your_expected_budget_"] || "",
+                  propertySize:
+                    fields["approximate_size_of_your_property?"] ||
+                    fields["approximate_size_of_your_property_(in_sqft)"] ||
+                    "",
+                  preferredCallTime: fields["preferred_time_to_call_you?_"] || "",
+                  initialNotes: fields["when_are_you_planning_to_construct_"] || "",
+                  briefScope: fields["how_would_you_like_to_proceed_with_consultation?"] || "",
+                  leadSource: formData.name || "Meta Ads",
+                  platform,
                   status: "NEW",
-                  leadCreatedDate: new Date(),
+                  leadCreatedDate: leadData.created_time
+                    ? new Date(leadData.created_time)
+                    : new Date(),
                   userId: process.env.DEFAULT_USER_ID!,
                 },
               });
 
-              console.log("New lead saved:", JSON.stringify(fields));
+              console.log("New lead saved from form:", formData.name, JSON.stringify(fields));
             }
           }
         }
