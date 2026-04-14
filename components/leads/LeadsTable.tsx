@@ -15,18 +15,6 @@ import { Search, Plus, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '—';
   const date = new Date(value);
