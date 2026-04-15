@@ -21,6 +21,7 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
+  useSidebar,
 } from './ui/sidebar';
 import { getCurrentAppConfig } from '@/config/route';
 import { usePathname } from 'next/navigation';
@@ -33,6 +34,17 @@ import { cn } from '@/lib/utils';
 import { useRef, useState, useSyncExternalStore } from 'react';
 import NavFooter from '@/components/NavFooter';
 import { useAuth } from '@/contexts/AuthContext';
+
+function MobileSidebarCloser() {
+  const pathname = usePathname();
+  const { setOpenMobile, isMobile } = useSidebar();
+  React.useEffect(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [pathname, isMobile, setOpenMobile]);
+  return null;
+}
 
 export function AppSidebar({ children, ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
@@ -138,6 +150,7 @@ export function AppSidebar({ children, ...props }: React.ComponentProps<typeof S
 
   return (
     <SidebarProvider>
+      <MobileSidebarCloser />
       <Sidebar collapsible='icon' {...props}>
         <SidebarHeader>
           <NavUser />
@@ -229,20 +242,20 @@ export function AppSidebar({ children, ...props }: React.ComponentProps<typeof S
         </SidebarFooter>
         <SidebarRail />
       </Sidebar>
-      <SidebarInset className='h-dvh overflow-hidden'>
+      <SidebarInset className='flex h-dvh flex-col overflow-hidden'>
         <header className='flex h-16 shrink-0 items-center gap-2 border-b px-4'>
           <SidebarTrigger className='-ml-1' />
           <Separator orientation='vertical' className='mr-2 h-4' />
-          <Breadcrumb>
-            <BreadcrumbList>
+          <Breadcrumb className='min-w-0 flex-1 overflow-hidden'>
+            <BreadcrumbList className='flex-nowrap'>
               {breadcrumbs.map((crumb) => (
                 <React.Fragment key={crumb.href}>
-                  <BreadcrumbItem>
+                  <BreadcrumbItem className='min-w-0'>
                     {crumb.isLast ? (
-                      <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
+                      <BreadcrumbPage className='block max-w-[140px] truncate sm:max-w-xs'>{crumb.name}</BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
-                        <Link href={crumb.href}>{crumb.name}</Link>
+                        <Link href={crumb.href} className='block max-w-[100px] truncate sm:max-w-[160px]'>{crumb.name}</Link>
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>
@@ -251,14 +264,14 @@ export function AppSidebar({ children, ...props }: React.ComponentProps<typeof S
               ))}
             </BreadcrumbList>
           </Breadcrumb>
-          <div className='ml-auto flex items-center space-x-2'>
+          <div className='ml-auto flex shrink-0 items-center space-x-2'>
             <Button variant='outline' size='sm' onClick={handleRefresh} disabled={isRefreshing}>
               <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
-              Refresh
+              <span className='hidden sm:inline'>Refresh</span>
             </Button>
           </div>
         </header>
-        <div className='w-full overflow-auto' ref={contentRef}>
+        <div className='min-h-0 flex-1 overflow-auto' ref={contentRef}>
           {children}
         </div>
       </SidebarInset>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
@@ -30,35 +31,27 @@ export function LoginForm() {
     }
   }
 
+  const canSubmit = !loading && !!email && !!password;
+
   return (
-    <div style={{ width: "100%", maxWidth: "400px" }}>
-      {/* Title */}
-      <h1 style={{
-        fontSize: "2.75rem",
-        fontWeight: 800,
-        color: "#1f2937",
-        lineHeight: 1.15,
-        marginBottom: "0.75rem",
-      }}>
+    <div className="w-full">
+      {/* Heading */}
+      <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl md:text-3xl">
         Sign in to your account
       </h1>
-      <p style={{ fontSize: "1rem", color: "#9ca3af", marginBottom: "2.5rem" }}>
-        Enter your credentials to access Innov CRM
+      <p className="mt-1.5 text-sm text-gray-500">
+        Enter your credentials below
       </p>
 
-      <form onSubmit={handleSignIn}>
-        {/* Email */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <label style={{
-            display: "block",
-            fontSize: "0.9375rem",
-            fontWeight: 600,
-            color: "#374151",
-            marginBottom: "0.5rem",
-          }}>
+      <form onSubmit={handleSignIn} className="mt-6 space-y-4 sm:mt-8 sm:space-y-5">
+
+        {/* Email field */}
+        <div>
+          <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">
             Email
           </label>
           <input
+            id="email"
             type="email"
             placeholder="name@example.com"
             value={email}
@@ -66,35 +59,24 @@ export function LoginForm() {
             required
             disabled={loading}
             autoComplete="email"
-            style={{
-              width: "100%",
-              padding: "0.875rem 1rem",
-              fontSize: "1rem",
-              backgroundColor: "#eef2ff",
-              border: "none",
-              borderRadius: "10px",
-              outline: "none",
-              color: "#1f2937",
-              boxSizing: "border-box",
-              transition: "box-shadow 0.2s",
-            }}
-            onFocus={e => e.target.style.boxShadow = "0 0 0 3px rgba(124,58,237,0.15)"}
-            onBlur={e => e.target.style.boxShadow = "none"}
+            inputMode="email"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
           />
         </div>
 
-        {/* Password */}
-        <div style={{ marginBottom: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-            <label style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#374151" }}>
+        {/* Password field */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
               Password
             </label>
-            <span style={{ fontSize: "0.875rem", color: "#7c3aed", fontWeight: 500, cursor: "pointer" }}>
+            <span className="text-xs font-medium text-violet-600 cursor-pointer hover:text-violet-700">
               Forgot password?
             </span>
           </div>
-          <div style={{ position: "relative" }}>
+          <div className="relative">
             <input
+              id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               value={password}
@@ -102,78 +84,36 @@ export function LoginForm() {
               required
               disabled={loading}
               autoComplete="current-password"
-              style={{
-                width: "100%",
-                padding: "0.875rem 3rem 0.875rem 1rem",
-                fontSize: "1rem",
-                backgroundColor: "#eef2ff",
-                border: "none",
-                borderRadius: "10px",
-                outline: "none",
-                color: "#1f2937",
-                boxSizing: "border-box",
-                transition: "box-shadow 0.2s",
-              }}
-              onFocus={e => e.target.style.boxShadow = "0 0 0 3px rgba(124,58,237,0.15)"}
-              onBlur={e => e.target.style.boxShadow = "none"}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pr-12 text-base text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
             />
             <button
               type="button"
               onClick={() => setShowPassword((p) => !p)}
               disabled={loading}
-              style={{
-                position: "absolute",
-                right: "1rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: "#6b7280",
-                display: "flex",
-                alignItems: "center",
-                padding: 0,
-              }}
+              tabIndex={-1}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zM10 14.5c-2.48 0-4.5-2.02-4.5-4.5S7.52 5.5 10 5.5 14.5 7.52 14.5 10 12.48 14.5 10 14.5zm0-7.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
-                  <path d="M2.5 2.5L17.5 17.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              ) : (
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 3C5 3 1.73 7.11 1 10c.73 2.89 4 7 9 7s8.27-4.11 9-7c-.73-2.89-4-7-9-7zM10 14.5c-2.48 0-4.5-2.02-4.5-4.5S7.52 5.5 10 5.5 14.5 7.52 14.5 10 12.48 14.5 10 14.5zm0-7.5c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="currentColor"/>
-                </svg>
-              )}
+              {showPassword
+                ? <EyeOff className="h-5 w-5" />
+                : <Eye className="h-5 w-5" />
+              }
             </button>
           </div>
         </div>
 
-        {/* Button */}
+        {/* Submit button */}
         <button
           type="submit"
-          disabled={loading || !email || !password}
-          style={{
-            width: "100%",
-            padding: "0.9375rem 1.5rem",
-            fontSize: "1rem",
-            fontWeight: 600,
-            color: "#ffffff",
-            backgroundColor: loading || !email || !password ? "#9ca3af" : "#6b7280",
-            border: "none",
-            borderRadius: "10px",
-            cursor: loading || !email || !password ? "not-allowed" : "pointer",
-            marginTop: "0.5rem",
-            transition: "background-color 0.2s",
-          }}
-          onMouseEnter={e => { if (!loading && email && password) (e.target as HTMLButtonElement).style.backgroundColor = "#4b5563"; }}
-          onMouseLeave={e => { if (!loading && email && password) (e.target as HTMLButtonElement).style.backgroundColor = "#6b7280"; }}
+          disabled={!canSubmit}
+          className="mt-2 w-full rounded-xl bg-primary py-3.5 text-base font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {loading ? "Signing in..." : "Sign in →"}
+          {loading ? "Signing in…" : "Sign in →"}
         </button>
+
       </form>
 
-      <p style={{ marginTop: "2rem", fontSize: "0.875rem", color: "#9ca3af", textAlign: "center" }}>
+      <p className="mt-8 text-center text-sm text-gray-400">
         Need access? Contact your administrator.
       </p>
     </div>

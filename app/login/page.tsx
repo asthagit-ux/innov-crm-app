@@ -3,78 +3,89 @@ import { LoginForm } from "@/components/auth";
 
 export default function LoginPage() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', width: '100%', backgroundColor: '#f5f5f5' }}>
-      <div style={{ display: 'flex', width: '100%', minHeight: '100vh' }}>
+    <div className="flex min-h-svh w-full">
 
-        {/* ── Left panel ── */}
-        <div style={{
-          flex: 1,
-          backgroundColor: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2rem',
-          position: 'relative',
-        }}>
-          {/* Logo */}
-          <div style={{ position: 'absolute', top: '1.25rem', left: '2rem', zIndex: 10 }}>
-            <Image
-              src="/logo.png"
-              alt="Innov CRM"
-              width={160}
-              height={60}
-              style={{ height: '60px', width: 'auto', objectFit: 'contain' }}
-              priority
-            />
-          </div>
+      {/* ── Left / form panel ── */}
+      <div className="relative flex w-full flex-col md:w-2/5 md:bg-white lg:w-[42%]">
 
-          {/* Form content */}
-          <div style={{ width: '100%', maxWidth: '400px' }}>
-            <LoginForm />
-          </div>
+        {/* Mobile background: dark gradient + golden glow (hidden on md+) */}
+        <div
+          className="absolute inset-0 md:hidden"
+          style={{
+            background: 'linear-gradient(155deg, #0c0c0c 0%, #111111 40%, #18130a 75%, #0a0a0a 100%)',
+          }}
+        />
+        {/* Golden radial glow — gives depth and warmth */}
+        <div
+          className="absolute inset-0 md:hidden"
+          style={{
+            background: 'radial-gradient(ellipse at 20% 65%, rgba(202,148,20,0.22) 0%, transparent 55%)',
+          }}
+        />
+        {/* Subtle top vignette */}
+        <div
+          className="absolute inset-x-0 top-0 h-48 md:hidden"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.35) 0%, transparent 100%)',
+          }}
+        />
+
+        {/* Logo */}
+        <div className="relative z-10 px-6 pt-8 sm:px-8 md:px-10">
+          <Image
+            src="/logo.png"
+            alt="Innov CRM"
+            width={140}
+            height={52}
+            style={{ height: '44px', width: 'auto', objectFit: 'contain' }}
+            className="brightness-0 invert md:brightness-100 md:invert-0"
+            priority
+          />
         </div>
 
-        {/* ── Right panel ── */}
-        <div style={{
-          flex: 1,
+        {/* Center block: tagline (mobile) + form card */}
+        <div className="relative z-10 flex flex-1 flex-col justify-center px-4 py-8 sm:px-6 md:items-center md:px-10">
+
+          {/* Tagline — mobile only, sits above the card */}
+          <div className="mb-5 md:hidden">
+            <div className="mb-3 h-px w-10 rounded-full bg-yellow-500/60" />
+            <p className="text-2xl font-bold leading-snug text-white sm:text-3xl">
+              Where all leads<br />convert.
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-white/55">
+              Manage leads, track follow-ups, and close deals.
+            </p>
+          </div>
+
+          {/* Form card (mobile) / plain form (desktop) */}
+          <div className="w-full rounded-2xl bg-white px-6 py-7 shadow-2xl shadow-black/40 md:max-w-sm md:rounded-none md:bg-transparent md:px-0 md:py-0 md:shadow-none">
+            <LoginForm />
+          </div>
+
+        </div>
+      </div>
+
+      {/* ── Right image panel (desktop only) ── */}
+      <div
+        className="hidden md:flex md:flex-1 md:flex-col md:items-center md:justify-center md:relative md:overflow-hidden md:p-14"
+        style={{
           backgroundImage: "url('/login-bg.jpg')",
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '3rem',
-          position: 'relative',
-          overflow: 'hidden',
         }}
-          className="hidden md:flex"
-        >
-          {/* Dark overlay */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: 'linear-gradient(135deg, rgba(31,41,55,0.5) 0%, rgba(17,24,39,0.5) 100%)',
-            zIndex: 0,
-          }} />
-          {/* Subtle grid */}
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='100' height='100' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 100 0 L 0 0 0 100' fill='none' stroke='rgba(255,255,255,0.03)' stroke-width='1'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23grid)'/%3E%3C/svg%3E")`,
-            opacity: 0.2, zIndex: 0,
-          }} />
-
-          {/* Promo content — centered */}
-          <div style={{ position: 'relative', zIndex: 1, color: '#ffffff', maxWidth: '500px' }}>
-            <h2 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1.5rem', lineHeight: 1.2 }}>
-              Where all leads have higher chances of conversion.
-            </h2>
-            <p style={{ fontSize: '1.125rem', color: '#d1d5db', lineHeight: 1.6 }}>
-              Manage leads, track follow-ups, and close deals — all in one place.
-            </p>
-          </div>
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/50 to-black/65" />
+        <div className="relative z-10 max-w-lg text-white">
+          <div className="mb-5 h-1 w-12 rounded-full bg-yellow-500/80" />
+          <h2 className="text-4xl font-bold leading-snug xl:text-5xl">
+            Where all leads have higher chances of conversion.
+          </h2>
+          <p className="mt-5 text-lg leading-relaxed text-white/70">
+            Manage leads, track follow-ups, and close deals — all in one place.
+          </p>
         </div>
-
       </div>
+
     </div>
   );
 }

@@ -183,22 +183,25 @@ export function LeadDetail({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/leads')}>
+      <div className="flex flex-wrap items-start gap-2 sm:items-center">
+        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/leads')} className="shrink-0">
           <ArrowLeft className="h-4 w-4 mr-2" /> Back
         </Button>
-        <h1 className="text-2xl font-semibold tracking-tight flex-1">
+        <h1 className="min-w-0 flex-1 text-xl font-semibold tracking-tight sm:text-2xl">
           {lead.customerName as string}
         </h1>
-        <div className="flex gap-2">
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Button variant="outline" size="sm" onClick={() => setShowMeetingModal(true)}>
-            <Calendar className="h-4 w-4 mr-2" /> Schedule Meeting
+            <Calendar className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Schedule Meeting</span>
+            <span className="sm:hidden">Meeting</span>
           </Button>
           {!editing ? (
             <>
-              <Button size="sm" onClick={handleEdit}>Edit Lead</Button>
+              <Button size="sm" onClick={handleEdit}>Edit</Button>
               <Button variant="destructive" size="sm" onClick={() => setShowDeleteDialog(true)}>
-                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                <Trash2 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Delete</span>
               </Button>
             </>
           ) : (
@@ -435,7 +438,7 @@ export function LeadDetail({ id }: { id: string }) {
           )}
         </div>
 
-        <div className="flex flex-col" style={{ height: '600px' }}>
+        <div className="flex flex-col" style={{ height: 'min(600px, 80vh)' }}>
           <Card className="flex flex-col h-full">
             <CardHeader className="pb-2 border-b flex-shrink-0">
               <CardTitle className="text-sm">Comments & Activity</CardTitle>
@@ -516,7 +519,7 @@ export function LeadDetail({ id }: { id: string }) {
                 onChange={e => setMeetingForm(p => ({ ...p, agenda: e.target.value }))}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Date *</Label>
                 <Input

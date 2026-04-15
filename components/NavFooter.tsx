@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authClient } from '@/lib/auth-client';
 import { parseMessage } from '@/utils/string.utils';
 import { Shield, LogOut, ChevronUp, Sun, Moon, Monitor, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ const NavFooter = () => {
   const navigationConfig = getCurrentAppConfig(u);
   const { theme, setTheme } = useTheme();
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -151,6 +153,108 @@ const NavFooter = () => {
       <div className='hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-lg p-2'>
         {triggerButton}
       </div>
+    );
+  }
+
+  // ── Mobile: inline expanded layout ──────────────────────────────────────
+  if (isMobile) {
+    return (
+      <>
+        {/* User info */}
+        <div className='flex items-center gap-3 rounded-lg px-2 py-2'>
+          <div className='bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-9 shrink-0 items-center justify-center rounded-lg'>
+            <Shield className='size-4' />
+          </div>
+          <div className='min-w-0 flex-1'>
+            <p className='truncate text-sm font-semibold'>{userName}</p>
+            {userInfo && <p className='truncate text-xs text-muted-foreground'>{userInfo}</p>}
+            <p className='text-xs text-muted-foreground'>{userRole}</p>
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className='mx-2 h-px bg-sidebar-border' />
+
+        {/* Theme toggle row */}
+        <div className='flex gap-1 px-2'>
+          {(['light', 'dark', 'system'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTheme(t)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs transition-colors ${
+                theme === t
+                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                  : 'text-muted-foreground hover:bg-sidebar-accent/50'
+              }`}
+            >
+              {t === 'light' && <Sun className='h-3.5 w-3.5' />}
+              {t === 'dark' && <Moon className='h-3.5 w-3.5' />}
+              {t === 'system' && <Monitor className='h-3.5 w-3.5' />}
+              <span className='capitalize'>{t}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Divider */}
+        <div className='mx-2 h-px bg-sidebar-border' />
+
+        {/* Change password */}
+        <button
+          onClick={() => setShowChangePassword(true)}
+          className='flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+        >
+          <KeyRound className='h-4 w-4 shrink-0' />
+          Change password
+        </button>
+
+        {/* Logout */}
+        <button
+          onClick={() => void handleLogout()}
+          className='flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10'
+        >
+          <LogOut className='h-4 w-4 shrink-0' />
+          Log out
+        </button>
+
+        {/* Change password dialog */}
+        <Dialog open={showChangePassword} onOpenChange={setShowChangePassword}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Password</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={(e) => void handleChangePassword(e)} className='space-y-4 py-2'>
+              <div className='space-y-2'>
+                <Label>Current Password</Label>
+                <div className='relative'>
+                  <Input type={showCurrent ? 'text' : 'password'} placeholder='Enter current password' value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required disabled={changingPassword} className='pr-10' />
+                  <button type='button' onClick={() => setShowCurrent((p) => !p)} className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground' tabIndex={-1}>
+                    {showCurrent ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+                  </button>
+                </div>
+              </div>
+              <div className='space-y-2'>
+                <Label>New Password</Label>
+                <div className='relative'>
+                  <Input type={showNew ? 'text' : 'password'} placeholder='Min. 6 characters' value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} disabled={changingPassword} className='pr-10' />
+                  <button type='button' onClick={() => setShowNew((p) => !p)} className='absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground' tabIndex={-1}>
+                    {showNew ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+                  </button>
+                </div>
+              </div>
+              <div className='space-y-2'>
+                <Label>Confirm New Password</Label>
+                <Input type='password' placeholder='Re-enter new password' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required disabled={changingPassword} />
+              </div>
+              <DialogFooter>
+                <Button type='button' variant='outline' onClick={() => setShowChangePassword(false)} disabled={changingPassword}>Cancel</Button>
+                <Button type='submit' disabled={changingPassword || !currentPassword || newPassword.length < 6 || !confirmPassword}>
+                  {changingPassword ? 'Saving...' : 'Change Password'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
