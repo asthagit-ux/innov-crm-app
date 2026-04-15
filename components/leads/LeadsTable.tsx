@@ -262,34 +262,36 @@ export function LeadsTable() {
                       </div>
                     )}
 
-                    {/* Row 3: inline status selects */}
-                    <div
-                      className="mt-3 flex items-center gap-2 flex-wrap"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <Select
-                        value={leadStatus || ''}
-                        onValueChange={v => handleInlineUpdate(lead.id as string, 'status', v)}
+                    {/* Row 3: inline status selects + nav arrow */}
+                    <div className="mt-3 flex items-center gap-2">
+                      <div
+                        className="flex flex-1 flex-wrap items-center gap-2"
+                        onClick={e => e.stopPropagation()}
                       >
-                        <SelectTrigger className="h-7 w-auto min-w-[110px] border-dashed text-xs">
-                          <SelectValue placeholder="Set status..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={active || ''}
-                        onValueChange={v => handleInlineUpdate(lead.id as string, 'activeStatus', v)}
-                      >
-                        <SelectTrigger className="h-7 w-auto min-w-[90px] border-dashed text-xs">
-                          <SelectValue placeholder="Active..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                        <Select
+                          value={leadStatus || ''}
+                          onValueChange={v => handleInlineUpdate(lead.id as string, 'status', v)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[110px] border-dashed text-xs">
+                            <SelectValue placeholder="Set status..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={active || ''}
+                          onValueChange={v => handleInlineUpdate(lead.id as string, 'activeStatus', v)}
+                        >
+                          <SelectTrigger className="h-7 w-auto min-w-[90px] border-dashed text-xs">
+                            <SelectValue placeholder="Active..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </div>
                   </CardContent>
                 </Card>
