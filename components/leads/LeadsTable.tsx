@@ -498,6 +498,13 @@ export function LeadsTable() {
                       </div>
                     )}
 
+                    {/* Remarks */}
+                    {(lead.initialNotes as string) && (
+                      <p className="mt-1.5 truncate text-xs text-muted-foreground italic">
+                        {lead.initialNotes as string}
+                      </p>
+                    )}
+
                     {/* Row 3: inline status selects + nav arrow */}
                     <div className="mt-3 flex items-center gap-2">
                       <div
@@ -539,7 +546,7 @@ export function LeadsTable() {
           <Card className="hidden md:block py-0 gap-0 overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="table-fixed min-w-[1200px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
+                <Table className="table-fixed min-w-[1400px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[180px]">Customer</TableHead>
@@ -550,6 +557,7 @@ export function LeadsTable() {
                       <TableHead className="w-[110px]">City</TableHead>
                       <TableHead className="w-[130px]">Property</TableHead>
                       <TableHead className="w-[180px]">Source</TableHead>
+                      <TableHead className="w-[200px]">Remarks</TableHead>
                       <TableHead className="w-[150px]">Created</TableHead>
                       <TableHead className="w-[110px]">Active</TableHead>
                       <TableHead className="w-[48px]" />
@@ -624,6 +632,10 @@ export function LeadsTable() {
                               </Badge>
                             )}
                           </div>
+                        </TableCell>
+
+                        <TableCell className="max-w-0 truncate text-sm text-muted-foreground" title={(lead.initialNotes as string) || ''}>
+                          {(lead.initialNotes as string) || '—'}
                         </TableCell>
 
                         <TableCell className="text-muted-foreground text-xs">{formatDateTime(lead.createdAt as string)}</TableCell>
