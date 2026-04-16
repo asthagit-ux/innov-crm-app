@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2, Phone, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2, Phone } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
 
 function formatDate(value: string | null | undefined) {
@@ -286,7 +287,7 @@ export function LeadDetail({ id }: { id: string }) {
                             rel="noopener noreferrer"
                             className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500 transition-colors active:opacity-60 hover:bg-green-500/20"
                           >
-                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                            <WhatsAppIcon className="h-3 w-3" /> WhatsApp
                           </a>
                         </div>
                       )}

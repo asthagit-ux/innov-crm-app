@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft, MessageCircle } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft } from 'lucide-react';
+import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
@@ -91,7 +92,7 @@ function ContactButtons({ phone, size = 'md' }: { phone: string; size?: 'sm' | '
         className={`${btnCls} text-muted-foreground hover:bg-green-500/10 hover:text-green-500`}
         title="WhatsApp"
       >
-        <MessageCircle className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
+        <WhatsAppIcon className={size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       </a>
       <Dialog open={confirmCall} onOpenChange={setConfirmCall}>
         <DialogContent className="max-w-xs">
