@@ -83,6 +83,7 @@ export function LeadsTable() {
   const [activeStatus, setActiveStatus] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
   const [platformFilter, setPlatformFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [followUpFilter, setFollowUpFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -112,6 +113,7 @@ export function LeadsTable() {
   const leads = useMemo(() => {
     return (rawLeads as Record<string, unknown>[]).filter(lead => {
       if (platformFilter && lead.platform !== platformFilter) return false;
+      if (sourceFilter && lead.leadSource !== sourceFilter) return false;
       if (dateFilter) {
         const created = new Date(lead.createdAt as string);
         const now = new Date();
@@ -136,7 +138,7 @@ export function LeadsTable() {
       }
       return true;
     });
-  }, [rawLeads, platformFilter, dateFilter, followUpFilter]);
+  }, [rawLeads, platformFilter, sourceFilter, dateFilter, followUpFilter]);
 
   // Dynamic platform list from fetched data
   const platforms = useMemo(() => {
@@ -145,11 +147,18 @@ export function LeadsTable() {
     return Array.from(set).sort();
   }, [rawLeads]);
 
-  const totalActiveFilters = [temperature, status, activeStatus, assigneeFilter, platformFilter, dateFilter, followUpFilter].filter(Boolean).length;
+  // Dynamic source list from fetched data
+  const sources = useMemo(() => {
+    const set = new Set<string>();
+    (rawLeads as Record<string, unknown>[]).forEach(l => { if (l.leadSource) set.add(l.leadSource as string); });
+    return Array.from(set).sort();
+  }, [rawLeads]);
+
+  const totalActiveFilters = [temperature, status, activeStatus, assigneeFilter, platformFilter, sourceFilter, dateFilter, followUpFilter].filter(Boolean).length;
 
   const clearAllFilters = () => {
     setSearch(''); setStatus(''); setTemperature(''); setActiveStatus('');
-    setAssigneeFilter(''); setPlatformFilter(''); setDateFilter(''); setFollowUpFilter('');
+    setAssigneeFilter(''); setPlatformFilter(''); setSourceFilter(''); setDateFilter(''); setFollowUpFilter('');
   };
 
   const getExportRows = () =>
@@ -300,10 +309,10 @@ export function LeadsTable() {
           />
         </div>
 
-        {/* All filters in a responsive grid */}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
+        {/* All filters — single scrollable row */}
+        <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           <Select value={temperature || 'ALL'} onValueChange={v => setTemperature(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[130px] ${temperature ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[120px] shrink-0${temperature ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Temps" />
             </SelectTrigger>
             <SelectContent>
@@ -314,7 +323,7 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={status || 'ALL'} onValueChange={v => setStatus(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[150px] ${status ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[130px] shrink-0${status ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -323,7 +332,7 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={activeStatus || 'ALL'} onValueChange={v => setActiveStatus(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[130px] ${activeStatus ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[120px] shrink-0${activeStatus ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Active" />
             </SelectTrigger>
             <SelectContent>
@@ -332,7 +341,7 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={assigneeFilter || 'ALL'} onValueChange={v => setAssigneeFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[150px] ${assigneeFilter ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[135px] shrink-0${assigneeFilter ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Assignees" />
             </SelectTrigger>
             <SelectContent>
@@ -342,7 +351,7 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={platformFilter || 'ALL'} onValueChange={v => setPlatformFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[150px] ${platformFilter ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[135px] shrink-0${platformFilter ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Platforms" />
             </SelectTrigger>
             <SelectContent>
@@ -350,8 +359,17 @@ export function LeadsTable() {
               {platforms.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={sourceFilter || 'ALL'} onValueChange={v => setSourceFilter(v === 'ALL' ? '' : v)}>
+            <SelectTrigger className={`h-9 w-[130px] shrink-0${sourceFilter ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Sources" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Sources</SelectItem>
+              {sources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Select value={dateFilter || 'ALL'} onValueChange={v => setDateFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[140px] ${dateFilter ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[125px] shrink-0${dateFilter ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="Date Created" />
             </SelectTrigger>
             <SelectContent>
@@ -362,7 +380,7 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={followUpFilter || 'ALL'} onValueChange={v => setFollowUpFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`w-full sm:w-[155px] ${followUpFilter ? 'border-primary/50 text-primary' : ''}`}>
+            <SelectTrigger className={`h-9 w-[135px] shrink-0${followUpFilter ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="Follow-up" />
             </SelectTrigger>
             <SelectContent>
@@ -384,6 +402,7 @@ export function LeadsTable() {
             {activeStatus && <FilterChip label={`Active: ${ACTIVE_OPTIONS.find(o => o.value === activeStatus)?.label ?? activeStatus}`} onRemove={() => setActiveStatus('')} />}
             {assigneeFilter && <FilterChip label={`Assignee: ${assigneeFilter === 'UNASSIGNED' ? 'Unassigned' : (users.find(u => u.id === assigneeFilter)?.name ?? assigneeFilter)}`} onRemove={() => setAssigneeFilter('')} />}
             {platformFilter && <FilterChip label={`Platform: ${platformFilter}`} onRemove={() => setPlatformFilter('')} />}
+            {sourceFilter && <FilterChip label={`Source: ${sourceFilter}`} onRemove={() => setSourceFilter('')} />}
             {dateFilter && <FilterChip label={`Created: ${dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'Last 7 days' : 'This month'}`} onRemove={() => setDateFilter('')} />}
             {followUpFilter && <FilterChip label={`Follow-up: ${followUpFilter === 'overdue' ? 'Overdue' : followUpFilter === 'today' ? 'Today' : followUpFilter === 'week' ? 'This week' : 'No date'}`} onRemove={() => setFollowUpFilter('')} />}
             <button onClick={clearAllFilters} className="ml-1 text-xs text-muted-foreground underline hover:text-foreground">Clear all</button>
