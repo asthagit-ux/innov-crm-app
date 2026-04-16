@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLeadsQuery, useCreateLead } from '@/queries/leads';
+import { useLeadsQuery, useLeadsMetaQuery, useCreateLead } from '@/queries/leads';
 import { useUsersQuery } from '@/queries/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,10 +12,30 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Trash2, ChevronRight, X, Download } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+
+const PAGE_SIZE = 25;
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+}
+
+function getPageNums(current: number, total: number): (number | '...')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: (number | '...')[] = [1];
+  if (current > 3) pages.push('...');
+  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+  if (current < total - 2) pages.push('...');
+  pages.push(total);
+  return pages;
+}
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '—';
@@ -98,61 +118,34 @@ export function LeadsTable() {
     temperature: 'WARM',
     platform: 'Meta Ads',
   });
+  const [page, setPage] = useState(1);
+
+  // Reset to page 1 whenever any filter changes
+  useEffect(() => { setPage(1); }, [search, status, temperature, activeStatus, assigneeFilter, platformFilter, sourceFilter, dateFilter, followUpFilter]);
+
   const { data: usersData } = useUsersQuery();
   const users = (usersData ?? []) as { id: string; name: string }[];
 
-  const { data: rawLeads = [], isLoading, isError, refetch } = useLeadsQuery({
-    search: search || undefined,
-    status: status || undefined,
+  const { data: metaData } = useLeadsMetaQuery();
+  const platforms = metaData?.platforms ?? [];
+  const sources   = metaData?.sources   ?? [];
+
+  const { data, isLoading, isError, refetch } = useLeadsQuery({
+    search:      search      || undefined,
+    status:      status      || undefined,
     temperature: temperature || undefined,
     activeStatus: activeStatus || undefined,
-    assignedTo: assigneeFilter || undefined,
+    assignedTo:  assigneeFilter || undefined,
+    platform:    platformFilter || undefined,
+    leadSource:  sourceFilter   || undefined,
+    dateCreated: dateFilter     || undefined,
+    followUp:    followUpFilter || undefined,
+    page,
+    pageSize: PAGE_SIZE,
   });
 
-  // Client-side filters (platform, date, follow-up)
-  const leads = useMemo(() => {
-    return (rawLeads as Record<string, unknown>[]).filter(lead => {
-      if (platformFilter && lead.platform !== platformFilter) return false;
-      if (sourceFilter && lead.leadSource !== sourceFilter) return false;
-      if (dateFilter) {
-        const created = new Date(lead.createdAt as string);
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const weekStart = new Date(todayStart);
-        weekStart.setDate(todayStart.getDate() - 6);
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        if (dateFilter === 'today' && created < todayStart) return false;
-        if (dateFilter === 'week' && created < weekStart) return false;
-        if (dateFilter === 'month' && created < monthStart) return false;
-      }
-      if (followUpFilter) {
-        const fu = lead.followUpDate ? new Date(lead.followUpDate as string) : null;
-        const now = new Date();
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayEnd = new Date(todayStart.getTime() + 86400000);
-        const weekEnd = new Date(todayStart.getTime() + 7 * 86400000);
-        if (followUpFilter === 'overdue' && (!fu || fu >= todayStart)) return false;
-        if (followUpFilter === 'today' && (!fu || fu < todayStart || fu >= todayEnd)) return false;
-        if (followUpFilter === 'week' && (!fu || fu < todayStart || fu >= weekEnd)) return false;
-        if (followUpFilter === 'no_date' && fu) return false;
-      }
-      return true;
-    });
-  }, [rawLeads, platformFilter, sourceFilter, dateFilter, followUpFilter]);
-
-  // Dynamic platform list from fetched data
-  const platforms = useMemo(() => {
-    const set = new Set<string>();
-    (rawLeads as Record<string, unknown>[]).forEach(l => { if (l.platform) set.add(l.platform as string); });
-    return Array.from(set).sort();
-  }, [rawLeads]);
-
-  // Dynamic source list from fetched data
-  const sources = useMemo(() => {
-    const set = new Set<string>();
-    (rawLeads as Record<string, unknown>[]).forEach(l => { if (l.leadSource) set.add(l.leadSource as string); });
-    return Array.from(set).sort();
-  }, [rawLeads]);
+  const leads      = data?.data      ?? [];
+  const pagination = data?.pagination;
 
   const totalActiveFilters = [temperature, status, activeStatus, assigneeFilter, platformFilter, sourceFilter, dateFilter, followUpFilter].filter(Boolean).length;
 
@@ -161,8 +154,16 @@ export function LeadsTable() {
     setAssigneeFilter(''); setPlatformFilter(''); setSourceFilter(''); setDateFilter(''); setFollowUpFilter('');
   };
 
-  const getExportRows = () =>
-    (leads as Record<string, unknown>[]).map(lead => ({
+  const fetchAllForExport = async () => {
+    const { fetchLeads } = await import('@/services/leads.service');
+    const result = await fetchLeads({
+      search: search || undefined, status: status || undefined,
+      temperature: temperature || undefined, activeStatus: activeStatus || undefined,
+      assignedTo: assigneeFilter || undefined, platform: platformFilter || undefined,
+      leadSource: sourceFilter || undefined, dateCreated: dateFilter || undefined,
+      followUp: followUpFilter || undefined, all: true,
+    });
+    return (result.data as Record<string, unknown>[]).map(lead => ({
       Name: (lead.customerName as string) || '',
       Phone: (lead.contactNumber as string) || '',
       'Alternate Contact': (lead.alternateContact as string) || '',
@@ -177,46 +178,39 @@ export function LeadsTable() {
       'Property Type': (lead.propertyType as string) || '',
       'Budget Range': (lead.budgetRange as string) || '',
       Requirement: (lead.requirement as string) || '',
+      Remarks: (lead.initialNotes as string) || '',
       Assignee: ((lead.assignedUser as Record<string, string> | null)?.name) || '',
       'Follow-up Date': (lead.followUpDate as string) ? new Date(lead.followUpDate as string).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
       'Created At': (lead.createdAt as string) ? new Date(lead.createdAt as string).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
     }));
+  };
 
-  const downloadCSV = () => {
-    const rows = getExportRows();
+  const downloadCSV = async () => {
+    const rows = await fetchAllForExport();
     if (!rows.length) { toast.error('No leads to export.'); return; }
-    const headers = Object.keys(rows[0]);
+    const hdrs = Object.keys(rows[0]);
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row =>
-        headers.map(h => {
-          const val = String((row as Record<string, string>)[h] ?? '').replace(/"/g, '""');
-          return `"${val}"`;
-        }).join(',')
-      ),
+      hdrs.join(','),
+      ...rows.map(row => hdrs.map(h => `"${String((row as Record<string, string>)[h] ?? '').replace(/"/g, '""')}"`).join(',')),
     ].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
+    a.href = url; a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length} leads as CSV.`);
   };
 
   const downloadExcel = async () => {
-    const rows = getExportRows();
+    const rows = await fetchAllForExport();
     if (!rows.length) { toast.error('No leads to export.'); return; }
     const { utils, writeFile } = await import('xlsx');
     const ws = utils.json_to_sheet(rows);
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, 'Leads');
-    // Auto column widths
-    const colWidths = Object.keys(rows[0]).map(key => ({
+    ws['!cols'] = Object.keys(rows[0]).map(key => ({
       wch: Math.max(key.length, ...rows.map(r => String((r as Record<string, string>)[key] ?? '').length)) + 2,
     }));
-    ws['!cols'] = colWidths;
     writeFile(wb, `leads-${new Date().toISOString().slice(0, 10)}.xlsx`);
     toast.success(`Exported ${rows.length} leads as Excel.`);
   };
@@ -411,7 +405,7 @@ export function LeadsTable() {
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">
-        {isLoading ? 'Loading...' : `${leads.length} lead${leads.length !== 1 ? 's' : ''} found`}
+        {isLoading ? 'Loading...' : pagination ? `${pagination.total} lead${pagination.total !== 1 ? 's' : ''} found` : ''}
       </p>
 
       {/* ── Content ── */}
@@ -447,12 +441,24 @@ export function LeadsTable() {
                         <p className="font-semibold leading-tight truncate">
                           {(lead.customerName as string) || 'Unnamed lead'}
                         </p>
-                        <p className="mt-0.5 text-sm text-muted-foreground">
-                          {(lead.contactNumber as string) || '—'}
-                          {(lead.city as string) && (
-                            <span className="before:mx-1.5 before:content-['·']">{lead.city as string}</span>
+                        <div className="mt-0.5 flex items-center gap-1.5">
+                          <span className="text-sm text-muted-foreground">
+                            {(lead.contactNumber as string) || '—'}
+                            {(lead.city as string) && (
+                              <span className="before:mx-1.5 before:content-['·']">{lead.city as string}</span>
+                            )}
+                          </span>
+                          {(lead.contactNumber as string) && (
+                            <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                              <a href={`tel:${lead.contactNumber as string}`} className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-blue-500/10 hover:text-blue-500" title="Call">
+                                <Phone className="h-3.5 w-3.5" />
+                              </a>
+                              <a href={`https://wa.me/${(lead.contactNumber as string).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-green-500/10 hover:text-green-500" title="WhatsApp">
+                                <WhatsAppIcon />
+                              </a>
+                            </div>
                           )}
-                        </p>
+                        </div>
                         <div className="mt-0.5" onClick={e => e.stopPropagation()}>
                           <Select
                             value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
@@ -571,7 +577,21 @@ export function LeadsTable() {
                         onClick={() => router.push(`/admin/leads/${lead.id}`)}
                       >
                         <TableCell className="font-medium truncate max-w-0">{(lead.customerName as string) || '—'}</TableCell>
-                        <TableCell className="text-muted-foreground truncate max-w-0">{(lead.contactNumber as string) || '—'}</TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm text-muted-foreground truncate">{(lead.contactNumber as string) || '—'}</span>
+                            {(lead.contactNumber as string) && (
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <a href={`tel:${lead.contactNumber as string}`} className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-blue-500/10 hover:text-blue-500" title="Call">
+                                  <Phone className="h-3.5 w-3.5" />
+                                </a>
+                                <a href={`https://wa.me/${(lead.contactNumber as string).replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="rounded p-1 text-muted-foreground/60 transition-colors hover:bg-green-500/10 hover:text-green-500" title="WhatsApp">
+                                  <WhatsAppIcon />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell onClick={e => e.stopPropagation()}>
                           <Select
                             value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
@@ -670,6 +690,40 @@ export function LeadsTable() {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {/* ── Pagination ── */}
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex flex-col items-center gap-3 py-2 sm:flex-row sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            Showing {((pagination.page - 1) * pagination.pageSize) + 1}–{Math.min(pagination.page * pagination.pageSize, pagination.total)} of {pagination.total} leads
+          </p>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={pagination.page === 1}>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Prev</span>
+            </Button>
+            {getPageNums(pagination.page, pagination.totalPages).map((p, i) =>
+              p === '...' ? (
+                <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">…</span>
+              ) : (
+                <Button
+                  key={p}
+                  variant={p === pagination.page ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setPage(p as number)}
+                  className="h-8 w-8 p-0"
+                >
+                  {p}
+                </Button>
+              )
+            )}
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={pagination.page === pagination.totalPages}>
+              <span className="hidden sm:inline">Next</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* ── Delete confirm dialog ── */}

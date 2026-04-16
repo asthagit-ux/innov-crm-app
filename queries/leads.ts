@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchLeads,
   fetchLead,
+  fetchLeadsMeta,
   createLead,
   updateLead,
   addComment,
@@ -12,6 +13,19 @@ export const leadQueryKeys = {
   all: ['leads'],
   list: (params?: object) => ['leads', 'list', params],
   detail: (id: string) => ['leads', 'detail', id],
+  meta: ['leads', 'meta'],
+};
+
+export type LeadPagination = {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type LeadsResponse = {
+  data: Record<string, unknown>[];
+  pagination: LeadPagination;
 };
 
 export function useLeadsQuery(params?: {
@@ -20,11 +34,26 @@ export function useLeadsQuery(params?: {
   temperature?: string;
   activeStatus?: string;
   assignedTo?: string;
+  platform?: string;
+  leadSource?: string;
+  dateCreated?: string;
+  followUp?: string;
+  page?: number;
+  pageSize?: number;
 }) {
-  return useQuery({
+  return useQuery<LeadsResponse>({
     queryKey: leadQueryKeys.list(params),
     queryFn: () => fetchLeads(params),
     staleTime: 1000 * 30,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useLeadsMetaQuery() {
+  return useQuery<{ platforms: string[]; sources: string[] }>({
+    queryKey: leadQueryKeys.meta,
+    queryFn: fetchLeadsMeta,
+    staleTime: 1000 * 60 * 5, // 5 min
   });
 }
 
