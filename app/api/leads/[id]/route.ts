@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.status && { status: body.status }),
         ...(body.temperature !== undefined && { temperature: body.temperature }),
         ...(body.activeStatus && { activeStatus: body.activeStatus }),
-        ...(body.assignedTo !== undefined && { assignedTo: body.assignedTo }),
+        ...(body.assignedTo !== undefined && { assignedTo: body.assignedTo || null }),
         ...(body.followUpDate !== undefined && { followUpDate: body.followUpDate ? new Date(body.followUpDate) : null }),
         ...(body.propertyType !== undefined && { propertyType: body.propertyType }),
         ...(body.briefScope !== undefined && { briefScope: body.briefScope }),

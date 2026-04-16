@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
+import { useUsersQuery } from '@/queries/users';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -80,6 +81,8 @@ export function LeadsTable() {
     temperature: 'WARM',
     platform: 'Meta Ads',
   });
+  const { data: usersData } = useUsersQuery();
+  const users = (usersData ?? []) as { id: string; name: string }[];
 
   const { data: leads = [], isLoading, isError, refetch } = useLeadsQuery({
     search: search || undefined,
@@ -233,6 +236,22 @@ export function LeadsTable() {
                             <span className="before:mx-1.5 before:content-['·']">{lead.city as string}</span>
                           )}
                         </p>
+                        <div className="mt-0.5" onClick={e => e.stopPropagation()}>
+                          <Select
+                            value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
+                            onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
+                          >
+                            <SelectTrigger className="h-6 w-auto border-0 bg-transparent p-0 text-xs text-muted-foreground focus:ring-0 gap-1">
+                              <SelectValue placeholder="Unassigned" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Unassigned</SelectItem>
+                              {users.map(u => (
+                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {temp && (
@@ -303,11 +322,12 @@ export function LeadsTable() {
           <Card className="hidden md:block py-0 gap-0 overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="table-fixed min-w-[1100px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
+                <Table className="table-fixed min-w-[1200px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[140px]">Phone</TableHead>
+                      <TableHead className="w-[130px]">Assignee</TableHead>
                       <TableHead className="w-[150px]">Status</TableHead>
                       <TableHead className="w-[90px]">Temp</TableHead>
                       <TableHead className="w-[110px]">City</TableHead>
@@ -327,6 +347,22 @@ export function LeadsTable() {
                       >
                         <TableCell className="font-medium truncate max-w-0">{(lead.customerName as string) || '—'}</TableCell>
                         <TableCell className="text-muted-foreground truncate max-w-0">{(lead.contactNumber as string) || '—'}</TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          <Select
+                            value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
+                            onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
+                          >
+                            <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
+                              <SelectValue placeholder="Unassigned" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">Unassigned</SelectItem>
+                              {users.map(u => (
+                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
 
                         <TableCell onClick={e => e.stopPropagation()}>
                           <Select
