@@ -19,6 +19,7 @@ export function useLeadsQuery(params?: {
   status?: string;
   temperature?: string;
   activeStatus?: string;
+  assignedTo?: string;
 }) {
   return useQuery({
     queryKey: leadQueryKeys.list(params),

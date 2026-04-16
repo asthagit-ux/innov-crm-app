@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLeadsQuery, useCreateLead } from '@/queries/leads';
 import { useUsersQuery } from '@/queries/users';
@@ -12,8 +12,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Trash2, ChevronRight } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronRight, X, Download } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 
 function formatDateTime(value: string | null | undefined) {
@@ -53,6 +54,17 @@ const ACTIVE_OPTIONS = [
   { value: 'HOLD', label: 'Hold' },
 ];
 
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2.5 py-0.5 text-xs font-medium">
+      {label}
+      <button onClick={onRemove} className="ml-0.5 rounded-full hover:text-destructive transition-colors">
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
+}
+
 function LeadsTableSkeleton() {
   return (
     <div className="space-y-2 p-2">
@@ -69,6 +81,10 @@ export function LeadsTable() {
   const [status, setStatus] = useState('');
   const [temperature, setTemperature] = useState('');
   const [activeStatus, setActiveStatus] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [platformFilter, setPlatformFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [followUpFilter, setFollowUpFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -84,12 +100,117 @@ export function LeadsTable() {
   const { data: usersData } = useUsersQuery();
   const users = (usersData ?? []) as { id: string; name: string }[];
 
-  const { data: leads = [], isLoading, isError, refetch } = useLeadsQuery({
+  const { data: rawLeads = [], isLoading, isError, refetch } = useLeadsQuery({
     search: search || undefined,
     status: status || undefined,
     temperature: temperature || undefined,
     activeStatus: activeStatus || undefined,
+    assignedTo: assigneeFilter || undefined,
   });
+
+  // Client-side filters (platform, date, follow-up)
+  const leads = useMemo(() => {
+    return (rawLeads as Record<string, unknown>[]).filter(lead => {
+      if (platformFilter && lead.platform !== platformFilter) return false;
+      if (dateFilter) {
+        const created = new Date(lead.createdAt as string);
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekStart = new Date(todayStart);
+        weekStart.setDate(todayStart.getDate() - 6);
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        if (dateFilter === 'today' && created < todayStart) return false;
+        if (dateFilter === 'week' && created < weekStart) return false;
+        if (dateFilter === 'month' && created < monthStart) return false;
+      }
+      if (followUpFilter) {
+        const fu = lead.followUpDate ? new Date(lead.followUpDate as string) : null;
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(todayStart.getTime() + 86400000);
+        const weekEnd = new Date(todayStart.getTime() + 7 * 86400000);
+        if (followUpFilter === 'overdue' && (!fu || fu >= todayStart)) return false;
+        if (followUpFilter === 'today' && (!fu || fu < todayStart || fu >= todayEnd)) return false;
+        if (followUpFilter === 'week' && (!fu || fu < todayStart || fu >= weekEnd)) return false;
+        if (followUpFilter === 'no_date' && fu) return false;
+      }
+      return true;
+    });
+  }, [rawLeads, platformFilter, dateFilter, followUpFilter]);
+
+  // Dynamic platform list from fetched data
+  const platforms = useMemo(() => {
+    const set = new Set<string>();
+    (rawLeads as Record<string, unknown>[]).forEach(l => { if (l.platform) set.add(l.platform as string); });
+    return Array.from(set).sort();
+  }, [rawLeads]);
+
+  const totalActiveFilters = [temperature, status, activeStatus, assigneeFilter, platformFilter, dateFilter, followUpFilter].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setSearch(''); setStatus(''); setTemperature(''); setActiveStatus('');
+    setAssigneeFilter(''); setPlatformFilter(''); setDateFilter(''); setFollowUpFilter('');
+  };
+
+  const getExportRows = () =>
+    (leads as Record<string, unknown>[]).map(lead => ({
+      Name: (lead.customerName as string) || '',
+      Phone: (lead.contactNumber as string) || '',
+      'Alternate Contact': (lead.alternateContact as string) || '',
+      Email: (lead.email as string) || '',
+      City: (lead.city as string) || '',
+      State: (lead.state as string) || '',
+      Platform: (lead.platform as string) || '',
+      Source: (lead.leadSource as string) || '',
+      Status: (lead.status as string) || '',
+      Temperature: (lead.temperature as string) || '',
+      'Active Status': (lead.activeStatus as string) || '',
+      'Property Type': (lead.propertyType as string) || '',
+      'Budget Range': (lead.budgetRange as string) || '',
+      Requirement: (lead.requirement as string) || '',
+      Assignee: ((lead.assignedUser as Record<string, string> | null)?.name) || '',
+      'Follow-up Date': (lead.followUpDate as string) ? new Date(lead.followUpDate as string).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
+      'Created At': (lead.createdAt as string) ? new Date(lead.createdAt as string).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
+    }));
+
+  const downloadCSV = () => {
+    const rows = getExportRows();
+    if (!rows.length) { toast.error('No leads to export.'); return; }
+    const headers = Object.keys(rows[0]);
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row =>
+        headers.map(h => {
+          const val = String((row as Record<string, string>)[h] ?? '').replace(/"/g, '""');
+          return `"${val}"`;
+        }).join(',')
+      ),
+    ].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} leads as CSV.`);
+  };
+
+  const downloadExcel = async () => {
+    const rows = getExportRows();
+    if (!rows.length) { toast.error('No leads to export.'); return; }
+    const { utils, writeFile } = await import('xlsx');
+    const ws = utils.json_to_sheet(rows);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, 'Leads');
+    // Auto column widths
+    const colWidths = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String((r as Record<string, string>)[key] ?? '').length)) + 2,
+    }));
+    ws['!cols'] = colWidths;
+    writeFile(wb, `leads-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Exported ${rows.length} leads as Excel.`);
+  };
 
   const createLead = useCreateLead();
 
@@ -144,14 +265,32 @@ export function LeadsTable() {
           <h1 className="text-2xl font-semibold tracking-tight">All Leads</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage and track your leads</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" /> Add Lead
-        </Button>
+        <div className="flex w-full gap-2 sm:w-auto">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex-1 sm:flex-none">
+                <Download className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={downloadCSV}>
+                Download as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={downloadExcel}>
+                Download as Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button onClick={() => setShowAddModal(true)} className="flex-1 sm:flex-none">
+            <Plus className="mr-2 h-4 w-4" /> Add Lead
+          </Button>
+        </div>
       </div>
 
       {/* ── Filters ── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-3">
-        <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
+      <div className="space-y-2">
+        {/* Search */}
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search by name or phone..."
@@ -160,10 +299,12 @@ export function LeadsTable() {
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="grid grid-cols-3 gap-2 sm:contents">
+
+        {/* All filters in a responsive grid */}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
           <Select value={temperature || 'ALL'} onValueChange={v => setTemperature(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Temp" />
+            <SelectTrigger className={`w-full sm:w-[130px] ${temperature ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Temps" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Temps</SelectItem>
@@ -173,8 +314,8 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={status || 'ALL'} onValueChange={v => setStatus(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-[160px]">
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className={`w-full sm:w-[150px] ${status ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Status</SelectItem>
@@ -182,15 +323,72 @@ export function LeadsTable() {
             </SelectContent>
           </Select>
           <Select value={activeStatus || 'ALL'} onValueChange={v => setActiveStatus(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Active" />
+            <SelectTrigger className={`w-full sm:w-[130px] ${activeStatus ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Active" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Active</SelectItem>
               {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={assigneeFilter || 'ALL'} onValueChange={v => setAssigneeFilter(v === 'ALL' ? '' : v)}>
+            <SelectTrigger className={`w-full sm:w-[150px] ${assigneeFilter ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Assignees" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Assignees</SelectItem>
+              <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
+              {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={platformFilter || 'ALL'} onValueChange={v => setPlatformFilter(v === 'ALL' ? '' : v)}>
+            <SelectTrigger className={`w-full sm:w-[150px] ${platformFilter ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="All Platforms" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Platforms</SelectItem>
+              {platforms.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={dateFilter || 'ALL'} onValueChange={v => setDateFilter(v === 'ALL' ? '' : v)}>
+            <SelectTrigger className={`w-full sm:w-[140px] ${dateFilter ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="Date Created" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Any Date</SelectItem>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">Last 7 days</SelectItem>
+              <SelectItem value="month">This month</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={followUpFilter || 'ALL'} onValueChange={v => setFollowUpFilter(v === 'ALL' ? '' : v)}>
+            <SelectTrigger className={`w-full sm:w-[155px] ${followUpFilter ? 'border-primary/50 text-primary' : ''}`}>
+              <SelectValue placeholder="Follow-up" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Any Follow-up</SelectItem>
+              <SelectItem value="overdue">⚠️ Overdue</SelectItem>
+              <SelectItem value="today">📅 Due today</SelectItem>
+              <SelectItem value="week">📆 Due this week</SelectItem>
+              <SelectItem value="no_date">— No date set</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        {/* Active filter chips */}
+        {totalActiveFilters > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Active:</span>
+            {temperature && <FilterChip label={`Temp: ${temperature}`} onRemove={() => setTemperature('')} />}
+            {status && <FilterChip label={`Status: ${STATUS_OPTIONS.find(o => o.value === status)?.label ?? status}`} onRemove={() => setStatus('')} />}
+            {activeStatus && <FilterChip label={`Active: ${ACTIVE_OPTIONS.find(o => o.value === activeStatus)?.label ?? activeStatus}`} onRemove={() => setActiveStatus('')} />}
+            {assigneeFilter && <FilterChip label={`Assignee: ${assigneeFilter === 'UNASSIGNED' ? 'Unassigned' : (users.find(u => u.id === assigneeFilter)?.name ?? assigneeFilter)}`} onRemove={() => setAssigneeFilter('')} />}
+            {platformFilter && <FilterChip label={`Platform: ${platformFilter}`} onRemove={() => setPlatformFilter('')} />}
+            {dateFilter && <FilterChip label={`Created: ${dateFilter === 'today' ? 'Today' : dateFilter === 'week' ? 'Last 7 days' : 'This month'}`} onRemove={() => setDateFilter('')} />}
+            {followUpFilter && <FilterChip label={`Follow-up: ${followUpFilter === 'overdue' ? 'Overdue' : followUpFilter === 'today' ? 'Today' : followUpFilter === 'week' ? 'This week' : 'No date'}`} onRemove={() => setFollowUpFilter('')} />}
+            <button onClick={clearAllFilters} className="ml-1 text-xs text-muted-foreground underline hover:text-foreground">Clear all</button>
+          </div>
+        )}
       </div>
 
       <p className="text-sm font-medium text-muted-foreground">

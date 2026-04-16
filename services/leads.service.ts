@@ -3,12 +3,14 @@ export async function fetchLeads(params?: {
     status?: string;
     temperature?: string;
     activeStatus?: string;
+    assignedTo?: string;
   }) {
     const query = new URLSearchParams();
     if (params?.search) query.set('search', params.search);
     if (params?.status) query.set('status', params.status);
     if (params?.temperature) query.set('temperature', params.temperature);
     if (params?.activeStatus) query.set('activeStatus', params.activeStatus);
+    if (params?.assignedTo) query.set('assignedTo', params.assignedTo);
   
     const response = await fetch(`/api/leads?${query.toString()}`, { method: 'GET' });
     if (!response.ok) throw new Error('Failed to fetch leads');

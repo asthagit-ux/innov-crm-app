@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") || "";
     const temperature = searchParams.get("temperature") || "";
     const activeStatus = searchParams.get("activeStatus") || "";
+    const assignedTo = searchParams.get("assignedTo") || "";
 
     const leads = await prisma.lead.findMany({
       where: {
@@ -26,6 +27,11 @@ export async function GET(req: NextRequest) {
         ...(status && { status: status as never }),
         ...(temperature && { temperature: temperature as never }),
         ...(activeStatus && { activeStatus: activeStatus as never }),
+        ...(assignedTo === "UNASSIGNED"
+          ? { assignedTo: null }
+          : assignedTo
+          ? { assignedTo }
+          : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {
