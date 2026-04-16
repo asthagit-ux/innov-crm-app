@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2, Phone, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 function formatDate(value: string | null | undefined) {
@@ -48,6 +48,7 @@ export function LeadDetail({ id }: { id: string }) {
   const scheduleMeeting = useScheduleMeeting(id);
 
   const [comment, setComment] = useState('');
+  const [confirmCall, setConfirmCall] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
@@ -266,9 +267,34 @@ export function LeadDetail({ id }: { id: string }) {
                 </>
               ) : (
                 <>
+                  {/* Phone with call/WhatsApp actions */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Phone</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium">{(lead.contactNumber as string) || '—'}</p>
+                      {(lead.contactNumber as string) && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setConfirmCall(true)}
+                            className="flex items-center gap-1 rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-500 transition-colors active:opacity-60 hover:bg-blue-500/20"
+                          >
+                            <Phone className="h-3 w-3" /> Call
+                          </button>
+                          <a
+                            href={`https://wa.me/${(lead.contactNumber as string).replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 rounded-lg border border-green-500/30 bg-green-500/10 px-2 py-1 text-xs font-medium text-green-500 transition-colors active:opacity-60 hover:bg-green-500/20"
+                          >
+                            <MessageCircle className="h-3 w-3" /> WhatsApp
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {[
                     { label: 'Customer Name', value: lead.customerName as string },
-                    { label: 'Phone', value: lead.contactNumber as string },
                     { label: 'Email', value: lead.email as string },
                     { label: 'City', value: lead.city as string },
                     { label: 'State', value: lead.state as string },
@@ -487,6 +513,22 @@ export function LeadDetail({ id }: { id: string }) {
           </Card>
         </div>
       </div>
+
+      {/* ── Call confirmation ── */}
+      <Dialog open={confirmCall} onOpenChange={setConfirmCall}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Call {lead.contactNumber as string}?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">This will open your phone dialer to make a call.</p>
+          <DialogFooter className="flex-row gap-2 sm:justify-end">
+            <Button variant="outline" size="sm" onClick={() => setConfirmCall(false)}>Cancel</Button>
+            <a href={`tel:${lead.contactNumber as string}`} onClick={() => setConfirmCall(false)}>
+              <Button size="sm"><Phone className="mr-1.5 h-4 w-4" /> Call now</Button>
+            </a>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
