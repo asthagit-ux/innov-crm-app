@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api-auth";
 
-// GET comments for a lead
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const { searchParams } = new URL(req.url);
     const leadId = searchParams.get("leadId");
-
     if (!leadId) return NextResponse.json({ error: "leadId is required" }, { status: 400 });
 
     const comments = await prisma.comment.findMany({
       where: { leadId },
       orderBy: { createdAt: "desc" },
-      include: {
-        user: { select: { id: true, name: true } },
-      },
+      include: { user: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json({ success: true, data: comments });
@@ -29,14 +24,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST add a comment
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const body = await req.json();
-
     if (!body.leadId || !body.content) {
       return NextResponse.json({ error: "leadId and content are required" }, { status: 400 });
     }
@@ -44,13 +37,11 @@ export async function POST(req: NextRequest) {
     const comment = await prisma.comment.create({
       data: {
         leadId: body.leadId,
-        userId: session.user.id,
+        userId: user.id,
         content: body.content,
         type: body.type || "note",
       },
-      include: {
-        user: { select: { id: true, name: true } },
-      },
+      include: { user: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json({ success: true, data: comment });

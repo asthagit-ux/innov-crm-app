@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trash2, UserPlus } from 'lucide-react';
 
 type AppUser = {
@@ -23,7 +24,7 @@ export function SettingsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState({ name: '', email: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'USER' as 'ADMIN' | 'USER' });
   const [addError, setAddError] = useState('');
   const [addLoading, setAddLoading] = useState(false);
 
@@ -83,14 +84,14 @@ export function SettingsPage() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newUser.name.trim(), email: newUser.email.trim() }),
+        body: JSON.stringify({ name: newUser.name.trim(), email: newUser.email.trim(), role: newUser.role }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setAddError(data.message || 'Failed to add user.');
+        setAddError(data.error || 'Failed to send invite.');
       } else {
         setShowAddModal(false);
-        setNewUser({ name: '', email: '' });
+        setNewUser({ name: '', email: '', role: 'USER' });
         loadUsers();
       }
     } catch {
@@ -104,7 +105,11 @@ export function SettingsPage() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     setDeleting(userId);
     try {
-      await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+      await fetch('/api/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId }),
+      });
       loadUsers();
     } catch {
       // ignore
@@ -132,7 +137,7 @@ export function SettingsPage() {
               </p>
             </div>
             <Button size="sm" onClick={() => setShowAddModal(true)}>
-              <UserPlus className="h-4 w-4 mr-2" /> Add User
+              <UserPlus className="h-4 w-4 mr-2" /> Invite User
             </Button>
           </div>
         </CardHeader>
@@ -180,11 +185,12 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Add User Modal */}
+      {/* Invite User Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New User</DialogTitle>
+            <DialogTitle>Invite User</DialogTitle>
+            <p className="text-sm text-muted-foreground">An invite email will be sent. They set their own password when they accept.</p>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -204,6 +210,18 @@ export function SettingsPage() {
                 onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={newUser.role} onValueChange={v => setNewUser(p => ({ ...p, role: v as 'ADMIN' | 'USER' }))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USER">User</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             {addError && (
               <p className="text-sm text-destructive">{addError}</p>
             )}
@@ -212,8 +230,8 @@ export function SettingsPage() {
             <Button variant="outline" onClick={() => { setShowAddModal(false); setAddError(''); }}>
               Cancel
             </Button>
-            <Button onClick={() => void handleAddUser()} disabled={addLoading}>
-              {addLoading ? 'Adding...' : 'Add User'}
+            <Button onClick={() => void handleAddUser()} disabled={addLoading || !newUser.name.trim() || !newUser.email.trim()}>
+              {addLoading ? 'Sending…' : 'Send Invite'}
             </Button>
           </DialogFooter>
         </DialogContent>

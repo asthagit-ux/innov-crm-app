@@ -1,3 +1,2 @@
-import { createAuthClient } from "better-auth/react";
-
-export const authClient = createAuthClient({});
+// Re-export Supabase browser client
+export { createClient } from '@/utils/supabase/client';

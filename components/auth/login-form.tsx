@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -15,8 +16,8 @@ export function LoginForm() {
   async function handleSignIn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const { authClient } = await import("@/lib/auth-client");
-    const { data, error } = await authClient.signIn.email({
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
@@ -25,17 +26,14 @@ export function LoginForm() {
       toast.error(error.message ?? "Invalid email or password.");
       return;
     }
-    if (data) {
-      router.push("/admin/dashboard");
-      router.refresh();
-    }
+    router.push("/admin/dashboard");
+    router.refresh();
   }
 
   const canSubmit = !loading && !!email && !!password;
 
   return (
     <div className="w-full">
-      {/* Heading */}
       <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-2xl md:text-3xl">
         Sign in to your account
       </h1>
@@ -44,8 +42,6 @@ export function LoginForm() {
       </p>
 
       <form onSubmit={handleSignIn} className="mt-6 space-y-4 sm:mt-8 sm:space-y-5">
-
-        {/* Email field */}
         <div>
           <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-1.5">
             Email
@@ -64,15 +60,14 @@ export function LoginForm() {
           />
         </div>
 
-        {/* Password field */}
         <div>
           <div className="mb-1.5 flex items-center justify-between">
             <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
               Password
             </label>
-            <span className="text-xs font-medium text-violet-600 cursor-pointer hover:text-violet-700">
+            <a href="/forgot-password" className="text-xs font-medium text-violet-600 hover:text-violet-700">
               Forgot password?
-            </span>
+            </a>
           </div>
           <div className="relative">
             <input
@@ -94,15 +89,11 @@ export function LoginForm() {
               className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword
-                ? <EyeOff className="h-5 w-5" />
-                : <Eye className="h-5 w-5" />
-              }
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
         </div>
 
-        {/* Submit button */}
         <button
           type="submit"
           disabled={!canSubmit}
@@ -110,7 +101,6 @@ export function LoginForm() {
         >
           {loading ? "Signing in…" : "Sign in →"}
         </button>
-
       </form>
 
       <p className="mt-8 text-center text-sm text-gray-400">

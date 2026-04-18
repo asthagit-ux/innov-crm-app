@@ -1,39 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api-auth";
 
 // GET single lead
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
         user: { select: { id: true, name: true, email: true } },
         assignedUser: { select: { id: true, name: true, email: true } },
         teamMembers: {
-          include: {
-            user: { select: { id: true, name: true, email: true } },
-          },
+          include: { user: { select: { id: true, name: true, email: true } } },
         },
         comments: {
           orderBy: { createdAt: "desc" },
-          include: {
-            user: { select: { id: true, name: true } },
-          },
+          include: { user: { select: { id: true, name: true } } },
         },
         meetings: {
           orderBy: { meetingDate: "asc" },
-          include: {
-            user: { select: { id: true, name: true } },
-          },
+          include: { user: { select: { id: true, name: true } } },
         },
-        activities: {
-          orderBy: { activityDate: "desc" },
-        },
+        activities: { orderBy: { activityDate: "desc" } },
       },
     });
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
@@ -48,8 +39,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
     const body = await req.json();
     const lead = await prisma.lead.update({
       where: { id },
@@ -82,8 +73,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
     await prisma.lead.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

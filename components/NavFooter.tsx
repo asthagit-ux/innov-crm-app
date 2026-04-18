@@ -3,7 +3,7 @@
 import { useSyncExternalStore, useState } from 'react';
 import { getCurrentAppConfig } from '@/config/route';
 import { useAuth } from '@/contexts/AuthContext';
-import { authClient } from '@/lib/auth-client';
+import { createClient } from '@/utils/supabase/client';
 import { parseMessage } from '@/utils/string.utils';
 import { Shield, LogOut, ChevronUp, Sun, Moon, Monitor, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -55,14 +55,19 @@ const NavFooter = () => {
     }
     setChangingPassword(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        toast.error(data.error ?? 'Failed to change password.');
+      const supabase = createClient();
+      // Verify current password first
+      const email = String((u && typeof u === 'object' && 'email' in u ? u.email : '') ?? '');
+      const { error: verifyError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+      if (verifyError) {
+        toast.error('Current password is incorrect.');
+        setChangingPassword(false);
+        return;
+      }
+      // Update to new password
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) {
+        toast.error(error.message ?? 'Failed to change password.');
       } else {
         toast.success('Password changed successfully.');
         setShowChangePassword(false);
@@ -96,14 +101,10 @@ const NavFooter = () => {
 
   const handleLogout = async () => {
     toast.success('Logging out...');
-    await authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => {
-          router.push('/login');
-          router.refresh();
-        },
-      },
-    });
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+    router.refresh();
   };
 
   const getThemeIcon = (currentTheme: string) => {

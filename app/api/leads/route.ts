@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api-auth";
 
 // GET leads with full server-side filtering + pagination
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const { searchParams } = new URL(req.url);
     const search       = searchParams.get("search") || "";
@@ -23,7 +22,6 @@ export async function GET(req: NextRequest) {
     const pageSize     = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "25", 10)));
     const exportAll    = searchParams.get("all") === "1";
 
-    // IST-aware date boundaries
     const ISTOffsetMs   = 5.5 * 60 * 60 * 1000;
     const nowIST        = new Date(Date.now() + ISTOffsetMs);
     const todayStartUTC = new Date(Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()) - ISTOffsetMs);
@@ -86,32 +84,32 @@ export async function GET(req: NextRequest) {
 // POST create a new lead
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const body = await req.json();
     const lead = await prisma.lead.create({
       data: {
-        customerName:    body.customerName,
-        contactNumber:   body.contactNumber,
+        customerName:     body.customerName,
+        contactNumber:    body.contactNumber,
         alternateContact: body.alternateContact,
-        email:           body.email,
-        state:           body.state,
-        city:            body.city,
-        platform:        body.platform || "Meta Ads",
-        leadSource:      body.leadSource || "Meta Ads",
-        status:          body.status || "NEW",
-        temperature:     body.temperature,
-        activeStatus:    body.activeStatus || "ACTIVE",
-        assignedTo:      body.assignedTo,
-        leadCreatedDate: body.leadCreatedDate ? new Date(body.leadCreatedDate) : new Date(),
-        followUpDate:    body.followUpDate ? new Date(body.followUpDate) : null,
-        propertyType:    body.propertyType,
-        briefScope:      body.briefScope,
-        budgetRange:     body.budgetRange,
-        requirement:     body.requirement,
-        initialNotes:    body.initialNotes,
-        userId:          session.user.id,
+        email:            body.email,
+        state:            body.state,
+        city:             body.city,
+        platform:         body.platform || "Meta Ads",
+        leadSource:       body.leadSource || "Meta Ads",
+        status:           body.status || "NEW",
+        temperature:      body.temperature,
+        activeStatus:     body.activeStatus || "ACTIVE",
+        assignedTo:       body.assignedTo,
+        leadCreatedDate:  body.leadCreatedDate ? new Date(body.leadCreatedDate) : new Date(),
+        followUpDate:     body.followUpDate ? new Date(body.followUpDate) : null,
+        propertyType:     body.propertyType,
+        briefScope:       body.briefScope,
+        budgetRange:      body.budgetRange,
+        requirement:      body.requirement,
+        initialNotes:     body.initialNotes,
+        userId:           user.id,
       },
     });
 

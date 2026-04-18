@@ -14,7 +14,6 @@ export async function fetchUsers() {
 export async function createUser(payload: {
   name: string;
   email: string;
-  password: string;
   role: 'ADMIN' | 'USER';
 }) {
   const normalizedPayload = {

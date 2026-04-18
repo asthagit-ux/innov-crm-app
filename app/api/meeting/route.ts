@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireAuth } from "@/lib/api-auth";
 
-// GET meetings
 export async function GET(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const { searchParams } = new URL(req.url);
     const leadId = searchParams.get("leadId");
@@ -28,14 +26,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST schedule a meeting
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
     const body = await req.json();
-
     if (!body.leadId || !body.agenda || !body.meetingDate) {
       return NextResponse.json({ error: "leadId, agenda and meetingDate are required" }, { status: 400 });
     }
@@ -43,7 +39,7 @@ export async function POST(req: NextRequest) {
     const meeting = await prisma.meeting.create({
       data: {
         leadId: body.leadId,
-        userId: session.user.id,
+        userId: user.id,
         agenda: body.agenda,
         meetingDate: new Date(body.meetingDate),
       },
@@ -53,11 +49,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Add a comment to the lead about the meeting
     await prisma.comment.create({
       data: {
         leadId: body.leadId,
-        userId: session.user.id,
+        userId: user.id,
         content: `📅 Meeting scheduled for ${new Date(body.meetingDate).toLocaleString("en-IN")} — ${body.agenda}`,
         type: "meeting",
       },

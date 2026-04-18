@@ -1,22 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { createServerClient } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
-/**
- * Protects routes under (main) by redirecting unauthenticated users to /login.
- * Matches /admin and nested protected routes.
- */
 export async function proxy(request: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
+  let supabaseResponse = NextResponse.next({ request });
 
-  if (!session) {
-    return NextResponse.redirect(new URL("/login", request.url));
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+
+  // Redirect unauthenticated users to /login
+  if (!user && pathname.startsWith('/admin')) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  return NextResponse.next();
+  // Redirect authenticated users away from /login and /forgot-password
+  if (user && (pathname === '/login' || pathname === '/forgot-password')) {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: ['/admin', '/admin/:path*', '/login', '/forgot-password'],
 };

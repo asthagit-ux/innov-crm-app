@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Eye, EyeOff, EllipsisVertical, Pencil, Trash2 } from 'lucide-react';
+import { EllipsisVertical, Pencil, Trash2 } from 'lucide-react';
 import {
   useCreateUserMutation,
   useDeleteUserMutation,
@@ -47,8 +47,6 @@ export function UserActions(props: UserActionsProps) {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [name, setName] = useState(props.mode === 'row' ? props.user.name : '');
   const [email, setEmail] = useState(props.mode === 'row' ? props.user.email : '');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<'ADMIN' | 'USER'>('USER');
 
   const createMutation = useCreateUserMutation();
@@ -64,7 +62,6 @@ export function UserActions(props: UserActionsProps) {
         await createMutation.mutateAsync({
           name: name.trim(),
           email: email.trim().toLowerCase(),
-          password,
           role,
         });
       } else {
@@ -103,7 +100,7 @@ export function UserActions(props: UserActionsProps) {
             <DialogHeader>
               <DialogTitle>Add user</DialogTitle>
               <DialogDescription>
-                Create a new user. They will log in with their email and the password you set.
+                An invite email will be sent. The user sets their own password when they accept.
               </DialogDescription>
             </DialogHeader>
 
@@ -134,31 +131,6 @@ export function UserActions(props: UserActionsProps) {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="user-action-password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="user-action-password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Min. 6 characters"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    required
-                    minLength={6}
-                    disabled={isSubmitting}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((p) => !p)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label>Role</Label>
                 <Select
                   value={role}
@@ -176,8 +148,8 @@ export function UserActions(props: UserActionsProps) {
               </div>
 
               <DialogFooter>
-                <Button type="submit" disabled={isSubmitting || !name.trim() || !email.trim() || password.length < 6}>
-                  {isSubmitting ? 'Adding...' : 'Add user'}
+                <Button type="submit" disabled={isSubmitting || !name.trim() || !email.trim()}>
+                  {isSubmitting ? 'Sending invite…' : 'Send invite'}
                 </Button>
               </DialogFooter>
             </form>

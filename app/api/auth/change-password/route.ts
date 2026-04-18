@@ -1,66 +1,31 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import prisma from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { requireAuth, adminClient } from "@/lib/api-auth";
 
 export async function POST(request: Request) {
   try {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
 
-    const { currentPassword, newPassword } = await request.json();
+    const { newPassword } = await request.json();
 
-    if (!currentPassword || !newPassword) {
-      return NextResponse.json(
-        { success: false, error: "Current and new password are required." },
-        { status: 400 }
-      );
-    }
-
-    if (newPassword.length < 6) {
+    if (!newPassword || newPassword.length < 6) {
       return NextResponse.json(
         { success: false, error: "New password must be at least 6 characters." },
         { status: 400 }
       );
     }
 
-    const userId = (session.user as { id: string }).id;
+    const admin = adminClient();
+    const { error } = await admin.auth.admin.updateUserById(user.id, { password: newPassword });
 
-    const account = await prisma.account.findFirst({
-      where: { userId, providerId: "credential" },
-      select: { id: true, password: true },
-    });
-
-    if (!account?.password) {
-      return NextResponse.json(
-        { success: false, error: "No password set for this account." },
-        { status: 400 }
-      );
+    if (error) {
+      console.error("change-password error:", error);
+      return NextResponse.json({ success: false, error: "Could not change password." }, { status: 500 });
     }
-
-    const isValid = await bcrypt.compare(currentPassword, account.password);
-    if (!isValid) {
-      return NextResponse.json(
-        { success: false, error: "Current password is incorrect." },
-        { status: 400 }
-      );
-    }
-
-    const hashedNew = await bcrypt.hash(newPassword, 10);
-
-    await prisma.account.update({
-      where: { id: account.id },
-      data: { password: hashedNew },
-    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("change-password error:", error);
-    return NextResponse.json(
-      { success: false, error: "Could not change password." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: "Could not change password." }, { status: 500 });
   }
 }
