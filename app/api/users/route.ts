@@ -54,7 +54,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        users: users.map((u) => ({ id: u.id, name: u.name, email: u.email, createdAt: u.createdAt, role: u.rolePermission.role })),
+        users: users.map((u: { id: string; name: string; email: string; createdAt: Date; rolePermission: { role: string } }) => ({ id: u.id, name: u.name, email: u.email, createdAt: u.createdAt, role: u.rolePermission.role })),
       },
     });
   } catch (error) {
