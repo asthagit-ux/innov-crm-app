@@ -589,7 +589,7 @@ export function LeadsTable() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[180px]">Customer</TableHead>
-                      <TableHead className="w-[140px]">Phone</TableHead>
+                      <TableHead className="w-[170px]">Phone</TableHead>
                       <TableHead className="w-[130px]">Assignee</TableHead>
                       <TableHead className="w-[150px]">Status</TableHead>
                       <TableHead className="w-[90px]">Temp</TableHead>
@@ -612,7 +612,7 @@ export function LeadsTable() {
                         <TableCell className="font-medium truncate max-w-0">{(lead.customerName as string) || '—'}</TableCell>
                         <TableCell onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
-                            <span className="text-sm text-muted-foreground truncate mr-1">{(lead.contactNumber as string) || '—'}</span>
+                            <span className="text-sm text-muted-foreground whitespace-nowrap mr-1">{(lead.contactNumber as string) || '—'}</span>
                             {(lead.contactNumber as string) && (
                               <ContactButtons phone={lead.contactNumber as string} size="sm" />
                             )}
