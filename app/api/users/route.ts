@@ -171,20 +171,19 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: 'You cannot delete your own account.', code: 'SELF_DELETE_NOT_ALLOWED' }, { status: 409 });
     }
 
-    const [targetUser, leadCount, chatCount, activityCount] = await Promise.all([
-      prisma.user.findUnique({ where: { id }, select: { id: true } }),
-      prisma.lead.count({ where: { userId: id } }),
-      prisma.chat.count({ where: { userId: id } }),
-      prisma.leadActivity.count({ where: { userId: id } }),
-    ]);
-
+    const targetUser = await prisma.user.findUnique({ where: { id }, select: { id: true } });
     if (!targetUser) return NextResponse.json({ success: false, error: 'User not found.', code: 'USER_NOT_FOUND' }, { status: 404 });
 
-    if (leadCount > 0 || chatCount > 0 || activityCount > 0) {
-      return NextResponse.json({ success: false, error: 'Cannot delete user because dependent records exist.', code: 'USER_HAS_DEPENDENTS' }, { status: 409 });
-    }
+    // Detach all records so no FK constraint blocks the delete
+    await prisma.$transaction([
+      prisma.lead.updateMany({ where: { userId: id }, data: { userId: null } }),
+      prisma.lead.updateMany({ where: { assignedTo: id }, data: { assignedTo: null } }),
+      prisma.leadActivity.updateMany({ where: { userId: id }, data: { userId: null } }),
+      prisma.comment.updateMany({ where: { userId: id }, data: { userId: null } }),
+      prisma.meeting.updateMany({ where: { userId: id }, data: { userId: null } }),
+    ]);
 
-    // Delete from public.users first (FK constraints), then Supabase Auth
+    // Delete from public.users (LeadTeamMember + Chat cascade automatically), then Supabase Auth
     await prisma.user.delete({ where: { id } });
     const admin = adminClient();
     await admin.auth.admin.deleteUser(id);
