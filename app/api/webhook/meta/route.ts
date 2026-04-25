@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { sendNewLeadNotification } from "@/lib/mailer";
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
               };
               const platform = platformMap[leadData.platform] ?? "Meta";
 
-              await prisma.lead.create({
+              const newLead = await prisma.lead.create({
                 data: {
                   customerName: fields["full_name"] || fields["name"] || "Unknown",
                   contactNumber: fields["phone_number"] || fields["phone"] || "",
@@ -85,6 +86,18 @@ export async function POST(req: NextRequest) {
               });
 
               console.log("New lead saved from form:", formData.name, JSON.stringify(fields));
+
+              void sendNewLeadNotification({
+                id: newLead.id,
+                customerName: newLead.customerName,
+                contactNumber: newLead.contactNumber ?? "",
+                city: newLead.city,
+                platform: newLead.platform,
+                leadSource: newLead.leadSource,
+                propertyType: newLead.propertyType,
+                status: newLead.status,
+                assignedUser: null,
+              });
             }
           }
         }

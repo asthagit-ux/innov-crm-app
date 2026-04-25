@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/api-auth";
+import { sendNewLeadNotification } from "@/lib/mailer";
 
 // GET leads with full server-side filtering + pagination
 export async function GET(req: NextRequest) {
@@ -111,6 +112,19 @@ export async function POST(req: NextRequest) {
         initialNotes:     body.initialNotes,
         userId:           user.id,
       },
+    });
+
+    // Fire-and-forget — don't block the response
+    void sendNewLeadNotification({
+      id: lead.id,
+      customerName: lead.customerName,
+      contactNumber: lead.contactNumber ?? "",
+      city: lead.city,
+      platform: lead.platform,
+      leadSource: lead.leadSource,
+      propertyType: lead.propertyType,
+      status: lead.status,
+      assignedUser: null,
     });
 
     return NextResponse.json({ success: true, data: lead });
