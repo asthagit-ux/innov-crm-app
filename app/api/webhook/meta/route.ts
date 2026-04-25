@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
                   leadCreatedDate: leadData.created_time
                     ? new Date(leadData.created_time)
                     : new Date(),
-                  userId: process.env.DEFAULT_USER_ID!,
+                  userId: process.env.DEFAULT_USER_ID || null,
                 },
               });
 
