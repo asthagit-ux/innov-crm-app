@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createTransporter, getAdminEmails } from "@/lib/mailer";
+import { createTransporter } from "@/lib/mailer";
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
@@ -31,18 +31,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, message: "No upcoming meetings" });
     }
 
-    const adminEmails = await getAdminEmails();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const transporter = createTransporter();
     const results: { meeting: string; sentTo: string[] }[] = [];
 
     for (const meeting of meetings) {
-      const recipients = Array.from(
-        new Set([
-          ...(meeting.user?.email ? [meeting.user.email] : []),
-          ...adminEmails,
-        ])
-      ).filter(Boolean);
+      // Send only to the person who created the meeting
+      const recipients = [meeting.user?.email].filter(Boolean) as string[];
 
       if (!recipients.length) continue;
 
