@@ -51,6 +51,8 @@ export async function GET(req: NextRequest) {
         timeStyle: "short",
       });
 
+      const minsRemaining = Math.max(1, Math.round((meeting.meetingDate.getTime() - now.getTime()) / 60000));
+
       const html = `
 <!DOCTYPE html>
 <html>
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
         <tr>
           <td style="background:#111827;padding:24px 28px;">
             <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#9ca3af;">Innov CRM</p>
-            <h1 style="margin:6px 0 0;font-size:20px;color:#ffffff;">⏰ Meeting in 10 minutes</h1>
+            <h1 style="margin:6px 0 0;font-size:20px;color:#ffffff;">⏰ Meeting in ${minsRemaining} minute${minsRemaining === 1 ? "" : "s"}</h1>
           </td>
         </tr>
 
@@ -118,7 +120,7 @@ export async function GET(req: NextRequest) {
       await transporter.sendMail({
         from: `"Innov CRM" <${process.env.SMTP_FROM}>`,
         to: recipients.join(", "),
-        subject: `⏰ Meeting in 10 min: ${meeting.lead.customerName}`,
+        subject: `⏰ Meeting in ${minsRemaining} min: ${meeting.lead.customerName}`,
         text: `Meeting reminder: ${meeting.lead.customerName} at ${meetingTimeIST}\nAgenda: ${meeting.agenda}\n\nView: ${leadUrl}`,
         html,
       });
