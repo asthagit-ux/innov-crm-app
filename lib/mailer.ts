@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import prisma from "@/lib/prisma";
 
-function createTransporter() {
+export function createTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT ?? 587),
@@ -14,7 +14,7 @@ function createTransporter() {
 }
 
 /** Fetch all admin email addresses from the DB */
-async function getAdminEmails(): Promise<string[]> {
+export async function getAdminEmails(): Promise<string[]> {
   // Allow override via env var (comma-separated)
   if (process.env.LEAD_NOTIFICATION_EMAILS) {
     return process.env.LEAD_NOTIFICATION_EMAILS.split(",").map((e) => e.trim()).filter(Boolean);

@@ -9,52 +9,52 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // Today's window in IST → UTC
-    const ISTOffsetMs = 5.5 * 60 * 60 * 1000;
-    const nowIST = new Date(Date.now() + ISTOffsetMs);
-    const todayStartUTC = new Date(
-      Date.UTC(nowIST.getUTCFullYear(), nowIST.getUTCMonth(), nowIST.getUTCDate()) - ISTOffsetMs
-    );
-    const todayEndUTC = new Date(todayStartUTC.getTime() + 86_400_000);
+    const now = new Date();
+    const in10Min = new Date(now.getTime() + 10 * 60 * 1000);
 
-    const leads = await prisma.lead.findMany({
+    // Find meetings starting in the next 10 minutes that haven't been reminded yet
+    const meetings = await prisma.meeting.findMany({
       where: {
-        followUpDate: { gte: todayStartUTC, lt: todayEndUTC },
-        activeStatus: "ACTIVE",
+        meetingDate: { gte: now, lte: in10Min },
+        reminderSent: false,
       },
       select: {
         id: true,
-        customerName: true,
-        contactNumber: true,
-        city: true,
-        budgetRange: true,
-        followUpDate: true,
-        assignedUser: { select: { name: true, email: true } },
+        agenda: true,
+        meetingDate: true,
+        lead: { select: { id: true, customerName: true, contactNumber: true, city: true } },
+        user: { select: { name: true, email: true } },
       },
     });
 
-    if (leads.length === 0) {
-      return NextResponse.json({ success: true, message: "No follow-ups today" });
+    if (meetings.length === 0) {
+      return NextResponse.json({ success: true, message: "No upcoming meetings" });
     }
 
     const adminEmails = await getAdminEmails();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const transporter = createTransporter();
-    const results: { lead: string; sentTo: string[] }[] = [];
+    const results: { meeting: string; sentTo: string[] }[] = [];
 
-    for (const lead of leads) {
-      // Send to assigned user + all admins (deduplicated)
+    for (const meeting of meetings) {
       const recipients = Array.from(
         new Set([
-          ...(lead.assignedUser?.email ? [lead.assignedUser.email] : []),
+          ...(meeting.user?.email ? [meeting.user.email] : []),
           ...adminEmails,
         ])
       ).filter(Boolean);
 
       if (!recipients.length) continue;
 
-      const leadUrl = `${siteUrl}/admin/leads/${lead.id}`;
-      const assignedName = lead.assignedUser?.name || "Team";
+      const leadUrl = `${siteUrl}/admin/leads/${meeting.lead.id}`;
+      const assignedName = meeting.user?.name || "Team";
+
+      // Format meeting time in IST
+      const meetingTimeIST = meeting.meetingDate.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
 
       const html = `
 <!DOCTYPE html>
@@ -68,13 +68,13 @@ export async function GET(req: NextRequest) {
         <tr>
           <td style="background:#111827;padding:24px 28px;">
             <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#9ca3af;">Innov CRM</p>
-            <h1 style="margin:6px 0 0;font-size:20px;color:#ffffff;">📅 Follow-up Reminder</h1>
+            <h1 style="margin:6px 0 0;font-size:20px;color:#ffffff;">⏰ Meeting in 10 minutes</h1>
           </td>
         </tr>
 
         <tr>
           <td style="padding:20px 28px 8px;">
-            <p style="margin:0;font-size:14px;color:#374151;">Hi ${assignedName}, you have a follow-up call scheduled today.</p>
+            <p style="margin:0;font-size:14px;color:#374151;">Hi ${assignedName}, your meeting is starting soon.</p>
           </td>
         </tr>
 
@@ -82,10 +82,11 @@ export async function GET(req: NextRequest) {
           <td style="padding:8px 16px 16px;">
             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
               ${[
-                ["Customer", lead.customerName],
-                ["Phone", lead.contactNumber || "—"],
-                ["City", lead.city || "—"],
-                ["Budget", lead.budgetRange || "—"],
+                ["Customer", meeting.lead.customerName],
+                ["Phone",    meeting.lead.contactNumber || "—"],
+                ["City",     meeting.lead.city || "—"],
+                ["Time",     meetingTimeIST],
+                ["Agenda",   meeting.agenda],
               ]
                 .map(
                   ([label, value]) => `<tr>
@@ -109,7 +110,7 @@ export async function GET(req: NextRequest) {
 
         <tr>
           <td style="padding:16px 28px;border-top:1px solid #f3f4f6;">
-            <p style="margin:0;font-size:12px;color:#9ca3af;">You are receiving this because you are an admin or assigned to this lead in Innov CRM.</p>
+            <p style="margin:0;font-size:12px;color:#9ca3af;">You are receiving this because you are an admin or assigned to this meeting in Innov CRM.</p>
           </td>
         </tr>
 
@@ -122,12 +123,18 @@ export async function GET(req: NextRequest) {
       await transporter.sendMail({
         from: `"Innov CRM" <${process.env.SMTP_FROM}>`,
         to: recipients.join(", "),
-        subject: `📅 Follow-up Today: ${lead.customerName}`,
-        text: `Follow-up reminder: ${lead.customerName} | ${lead.contactNumber || ""} | ${lead.city || ""}\n\nView: ${leadUrl}`,
+        subject: `⏰ Meeting in 10 min: ${meeting.lead.customerName}`,
+        text: `Meeting reminder: ${meeting.lead.customerName} at ${meetingTimeIST}\nAgenda: ${meeting.agenda}\n\nView: ${leadUrl}`,
         html,
       });
 
-      results.push({ lead: lead.customerName, sentTo: recipients });
+      // Mark as reminded so we never send twice
+      await prisma.meeting.update({
+        where: { id: meeting.id },
+        data: { reminderSent: true },
+      });
+
+      results.push({ meeting: meeting.lead.customerName, sentTo: recipients });
     }
 
     return NextResponse.json({
@@ -136,7 +143,7 @@ export async function GET(req: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error("Follow-up cron error:", error);
+    console.error("Meeting reminder cron error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
