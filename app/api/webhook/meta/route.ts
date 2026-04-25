@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
             // Fetch lead field data and form name in parallel
             const [leadResponse, formResponse] = await Promise.all([
               fetch(
-                "https://graph.facebook.com/v19.0/" + leadgenId + "?fields=field_data,platform&access_token=" + accessToken
+                "https://graph.facebook.com/v19.0/" + leadgenId + "?fields=field_data,platform,created_time&access_token=" + accessToken
               ),
               fetch(
                 "https://graph.facebook.com/v19.0/" + formId + "?fields=name&access_token=" + accessToken
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
                   leadCreatedDate: leadData.created_time
                     ? new Date(leadData.created_time)
                     : new Date(),
-                  userId: process.env.DEFAULT_USER_ID || null,
+                  userId: null,
                 },
               });
 
