@@ -23,7 +23,7 @@ async function getAdminEmails(): Promise<string[]> {
     where: { rolePermission: { role: "ADMIN" } },
     select: { email: true },
   });
-  return admins.map((a) => a.email);
+  return admins.map((a: { email: string }) => a.email);
 }
 
 type NewLeadData = {
