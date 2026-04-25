@@ -13,6 +13,7 @@ const updateUserSchema = z.object({
   id: z.string().trim().uuid('Invalid user id.'),
   name: z.string().trim().min(1, 'Name is required.'),
   email: z.email('Please provide a valid email address.').transform((v) => v.trim().toLowerCase()),
+  role: z.enum(['ADMIN', 'USER']).optional(),
 });
 
 const deleteUserSchema = z.object({
@@ -128,7 +129,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: parsed.error.issues[0]?.message ?? 'Invalid payload.', code: 'INVALID_UPDATE_PAYLOAD' }, { status: 400 });
     }
 
-    const { id, name, email } = parsed.data;
+    const { id, name, email, role } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { id }, select: { id: true } });
     if (!user) return NextResponse.json({ success: false, error: 'User not found.', code: 'USER_NOT_FOUND' }, { status: 404 });
@@ -138,17 +139,27 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Email already in use.', code: 'USER_EXISTS' }, { status: 409 });
     }
 
+    // Resolve rolePermissionId if role is being changed
+    let rolePermissionId: string | undefined;
+    if (role) {
+      const rolePermission = await prisma.rolePermission.findFirst({ where: { role }, select: { id: true } });
+      if (!rolePermission) {
+        return NextResponse.json({ success: false, error: `${role} role is not configured.`, code: 'ROLE_NOT_CONFIGURED' }, { status: 500 });
+      }
+      rolePermissionId = rolePermission.id;
+    }
+
     // Update email in Supabase Auth too
     const admin = adminClient();
     await admin.auth.admin.updateUserById(id, { email });
 
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { name, email },
-      select: { id: true, name: true, email: true, createdAt: true },
+      data: { name, email, ...(rolePermissionId && { rolePermissionId }) },
+      select: { id: true, name: true, email: true, createdAt: true, rolePermission: { select: { role: true } } },
     });
 
-    return NextResponse.json({ success: true, data: { user: updatedUser } });
+    return NextResponse.json({ success: true, data: { user: { ...updatedUser, role: updatedUser.rolePermission.role } } });
   } catch (error) {
     console.error({ fn: 'PATCH /api/users', error });
     return NextResponse.json({ success: false, error: 'Could not update user.', code: 'USER_UPDATE_FAILED' }, { status: 500 });

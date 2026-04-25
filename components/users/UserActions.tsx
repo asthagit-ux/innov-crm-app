@@ -32,6 +32,7 @@ type UserData = {
   id: string;
   name: string;
   email: string;
+  role: 'ADMIN' | 'USER';
 };
 
 type UserActionsProps =
@@ -47,7 +48,7 @@ export function UserActions(props: UserActionsProps) {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [name, setName] = useState(props.mode === 'row' ? props.user.name : '');
   const [email, setEmail] = useState(props.mode === 'row' ? props.user.email : '');
-  const [role, setRole] = useState<'ADMIN' | 'USER'>('USER');
+  const [role, setRole] = useState<'ADMIN' | 'USER'>(props.mode === 'row' ? props.user.role : 'USER');
 
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
@@ -69,6 +70,7 @@ export function UserActions(props: UserActionsProps) {
           id: props.user.id,
           name: name.trim(),
           email: email.trim().toLowerCase(),
+          role,
         });
       }
       setIsOpen(false);
@@ -171,6 +173,7 @@ export function UserActions(props: UserActionsProps) {
                   if (isRowActions) {
                     setName(props.user.name);
                     setEmail(props.user.email);
+                    setRole(props.user.role);
                   }
                   setIsOpen(true);
                 }}
@@ -198,6 +201,7 @@ export function UserActions(props: UserActionsProps) {
               if (open && isRowActions) {
                 setName(props.user.name);
                 setEmail(props.user.email);
+                setRole(props.user.role);
               }
             }}
           >
@@ -231,6 +235,23 @@ export function UserActions(props: UserActionsProps) {
                     required
                     disabled={isSubmitting}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select
+                    value={role}
+                    onValueChange={(value) => setRole(value as 'ADMIN' | 'USER')}
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">User</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <DialogFooter>

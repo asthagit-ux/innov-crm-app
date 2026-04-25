@@ -110,7 +110,7 @@ export function UsersOverview() {
                     </div>
                     {/* Actions */}
                     <div className="shrink-0">
-                      <UserActions mode="row" user={{ id: user.id, name: user.name, email: user.email }} />
+                      <UserActions mode="row" user={{ id: user.id, name: user.name, email: user.email, role: user.role as 'ADMIN' | 'USER' }} />
                     </div>
                   </div>
                 ))}
@@ -147,7 +147,7 @@ export function UsersOverview() {
                         </TableCell>
                         <TableCell className="pr-6">
                           <div className="flex items-center justify-end gap-1">
-                            <UserActions mode="row" user={{ id: user.id, name: user.name, email: user.email }} />
+                            <UserActions mode="row" user={{ id: user.id, name: user.name, email: user.email, role: user.role as 'ADMIN' | 'USER' }} />
                           </div>
                         </TableCell>
                       </TableRow>

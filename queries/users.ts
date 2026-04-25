@@ -36,7 +36,7 @@ export function useUpdateUserMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: { id: string; name: string; email: string }) =>
+    mutationFn: (payload: { id: string; name: string; email: string; role?: 'ADMIN' | 'USER' }) =>
       updateUser(payload),
     onSuccess: async () => {
       toast.success('User updated successfully.');
