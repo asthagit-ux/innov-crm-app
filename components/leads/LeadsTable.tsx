@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft, CheckSquare, Users } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -157,6 +158,55 @@ export function LeadsTable() {
     platform: 'Meta Ads',
   });
   const [page, setPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const currentIds = leads.map((l: Record<string, unknown>) => l.id as string);
+    const allSelected = currentIds.every((id: string) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        currentIds.forEach((id: string) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        currentIds.forEach((id: string) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleBulkUpdate = async (data: Record<string, string | null>) => {
+    if (selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      const res = await fetch('/api/leads/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds), data }),
+      });
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      toast.success(`Updated ${json.data.count} lead(s).`);
+      setSelectedIds(new Set());
+      void refetch();
+    } catch {
+      toast.error('Bulk update failed.');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
 
   // Reset to page 1 whenever any filter changes
   useEffect(() => { setPage(1); }, [search, status, temperature, activeStatus, assigneeFilter, platformFilter, sourceFilter, dateFilter, followUpFilter]);
@@ -446,6 +496,69 @@ export function LeadsTable() {
         {isLoading ? 'Loading...' : pagination ? `${pagination.total} lead${pagination.total !== 1 ? 's' : ''} found` : ''}
       </p>
 
+      {/* ── Bulk Action Bar ── */}
+      {selectedIds.size > 0 && (
+        <div className="sticky top-0 z-20 animate-in slide-in-from-top-2 fade-in duration-200 rounded-lg border border-primary/30 bg-primary/5 backdrop-blur-sm p-3 shadow-lg shadow-primary/5">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2.5 border-r border-primary/20 pr-3">
+              <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/15">
+                <CheckSquare className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm font-semibold tabular-nums">{selectedIds.size} selected</span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="rounded-md px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select onValueChange={v => void handleBulkUpdate({ status: v })} disabled={bulkUpdating}>
+                <SelectTrigger className="h-8 w-[140px] border-muted-foreground/25 bg-background/50 text-xs">
+                  <SelectValue placeholder="Change Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={v => void handleBulkUpdate({ temperature: v })} disabled={bulkUpdating}>
+                <SelectTrigger className="h-8 w-[130px] border-muted-foreground/25 bg-background/50 text-xs">
+                  <SelectValue placeholder="Change Temp" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HOT">🔥 Hot</SelectItem>
+                  <SelectItem value="WARM">🌡️ Warm</SelectItem>
+                  <SelectItem value="COLD">❄️ Cold</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select onValueChange={v => void handleBulkUpdate({ activeStatus: v })} disabled={bulkUpdating}>
+                <SelectTrigger className="h-8 w-[135px] border-muted-foreground/25 bg-background/50 text-xs">
+                  <SelectValue placeholder="Active Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={v => void handleBulkUpdate({ assignedTo: v === '__none__' ? null : v })} disabled={bulkUpdating}>
+                <SelectTrigger className="h-8 w-[140px] border-muted-foreground/25 bg-background/50 text-xs">
+                  <SelectValue placeholder="Assign To" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {bulkUpdating && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                Updating...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Content ── */}
       {isLoading ? (
         <LeadsTableSkeleton />
@@ -466,15 +579,23 @@ export function LeadsTable() {
               const temp = lead.temperature as string;
               const leadStatus = lead.status as string;
               const active = lead.activeStatus as string;
+              const isSelected = selectedIds.has(lead.id as string);
               return (
                 <Card
                   key={lead.id as string}
-                  className="overflow-hidden gap-0 py-0 cursor-pointer transition-colors hover:bg-muted/30 active:bg-muted/50"
+                  className={`overflow-hidden gap-0 py-0 cursor-pointer transition-all duration-150 hover:bg-muted/30 active:bg-muted/50 ${isSelected ? 'border-primary/50 bg-primary/10 ring-1 ring-primary/20' : ''}`}
                   onClick={() => router.push(`/admin/leads/${lead.id}`)}
                 >
                   <CardContent className="p-4">
-                    {/* Row 1: name + temp + delete */}
+                    {/* Row 1: checkbox + name + temp + delete */}
                     <div className="flex items-start gap-2">
+                      <div className="pt-1 shrink-0" onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(lead.id as string)}
+                          className="size-5 border-2 border-muted-foreground/50 transition-all duration-150 data-[state=checked]:border-primary data-[state=checked]:scale-105"
+                        />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-semibold leading-tight truncate">
                           {(lead.customerName as string) || 'Unnamed lead'}
@@ -585,9 +706,16 @@ export function LeadsTable() {
           <Card className="hidden md:block py-0 gap-0 overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table className="table-fixed min-w-[1400px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
+                <Table className="table-fixed min-w-[1440px] [&_th:first-child]:pl-6 [&_td:first-child]:pl-6 [&_th:last-child]:pr-6 [&_td:last-child]:pr-6 [&_th]:h-9">
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[48px]">
+                        <Checkbox
+                          checked={leads.length > 0 && leads.every((l: Record<string, unknown>) => selectedIds.has(l.id as string))}
+                          onCheckedChange={toggleSelectAll}
+                          className="size-[18px] border-2 border-muted-foreground/50 data-[state=checked]:border-primary"
+                        />
+                      </TableHead>
                       <TableHead className="w-[180px]">Customer</TableHead>
                       <TableHead className="w-[170px]">Phone</TableHead>
                       <TableHead className="w-[130px]">Assignee</TableHead>
@@ -606,9 +734,16 @@ export function LeadsTable() {
                     {leads.map((lead: Record<string, unknown>) => (
                       <TableRow
                         key={lead.id as string}
-                        className="cursor-pointer hover:bg-muted/50"
+                        className={`cursor-pointer transition-colors duration-150 hover:bg-muted/50 ${selectedIds.has(lead.id as string) ? 'bg-primary/10 hover:bg-primary/15' : ''}`}
                         onClick={() => router.push(`/admin/leads/${lead.id}`)}
                       >
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.has(lead.id as string)}
+                            onCheckedChange={() => toggleSelect(lead.id as string)}
+                            className="size-[18px] border-2 border-muted-foreground/50 transition-all duration-150 data-[state=checked]:border-primary data-[state=checked]:scale-105"
+                          />
+                        </TableCell>
                         <TableCell className="font-medium truncate max-w-0">{(lead.customerName as string) || '—'}</TableCell>
                         <TableCell onClick={e => e.stopPropagation()}>
                           <div className="flex items-center gap-0.5">
