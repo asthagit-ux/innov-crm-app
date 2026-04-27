@@ -12,7 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft, CheckSquare, Users } from 'lucide-react';
+import { Search, Plus, Trash2, ChevronRight, X, Download, Phone, ChevronLeft, CheckSquare } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { Badge } from '@/components/ui/badge';
