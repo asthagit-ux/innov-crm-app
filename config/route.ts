@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, Users, Settings, UserCheck } from "lucide-react";
+import { LayoutDashboard, Users, Settings, UserCheck, Calendar } from "lucide-react";
 
 export type NavSubItem = {
   title: string;
@@ -26,6 +26,11 @@ export function getCurrentAppConfig(user: unknown) {
         title: "Leads",
         url: "/leads",
         icon: UserCheck,
+      },
+      {
+        title: "Meetings",
+        url: "/meetings",
+        icon: Calendar,
       },
       {
         title: "Users",
