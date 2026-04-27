@@ -1,12 +1,18 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, CalendarDays, User, MapPin } from 'lucide-react';
+import { Calendar, CalendarDays, User, MapPin, Plus } from 'lucide-react';
 import { useMeetingsQuery } from '@/queries/meetings';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
 
 type MeetingItem = {
   id: string;
@@ -51,8 +57,43 @@ function MeetingsSkeleton() {
   );
 }
 
+type LeadOption = { id: string; customerName: string };
+
 export function MeetingsOverview() {
   const { data, isLoading, isError, error, refetch } = useMeetingsQuery();
+  const [showModal, setShowModal] = useState(false);
+  const [leads, setLeads] = useState<LeadOption[]>([]);
+  const [form, setForm] = useState({ leadId: '', agenda: '', meetingDate: '', meetingTime: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/leads?all=1&pageSize=100')
+      .then(r => r.json())
+      .then(d => { if (d.success) setLeads(d.data.map((l: LeadOption) => ({ id: l.id, customerName: l.customerName }))); })
+      .catch(() => {});
+  }, []);
+
+  const handleCreate = async () => {
+    if (!form.leadId || !form.agenda || !form.meetingDate || !form.meetingTime) return;
+    setSubmitting(true);
+    try {
+      const meetingDate = new Date(`${form.meetingDate}T${form.meetingTime}`).toISOString();
+      const res = await fetch('/api/meeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: form.leadId, agenda: form.agenda, meetingDate }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Meeting scheduled.');
+      setShowModal(false);
+      setForm({ leadId: '', agenda: '', meetingDate: '', meetingTime: '' });
+      void refetch();
+    } catch {
+      toast.error('Failed to schedule meeting.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const allMeetings = (data ?? []) as MeetingItem[];
 
@@ -85,15 +126,20 @@ export function MeetingsOverview() {
       {/* Upcoming Meetings */}
       <Card className="border-primary/20 bg-linear-to-br from-primary/5 via-background to-background">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <span className="rounded-md bg-primary/10 p-1.5 text-primary">
-              <Calendar className="h-4 w-4" />
-            </span>
-            Upcoming Meetings
-            {upcoming.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{upcoming.length}</Badge>
-            )}
-          </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <span className="rounded-md bg-primary/10 p-1.5 text-primary">
+                <Calendar className="h-4 w-4" />
+              </span>
+              Upcoming Meetings
+              {upcoming.length > 0 && (
+                <Badge variant="secondary" className="ml-2">{upcoming.length}</Badge>
+              )}
+            </CardTitle>
+            <Button size="sm" onClick={() => setShowModal(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Schedule Meeting
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {upcoming.length === 0 ? (
@@ -129,6 +175,63 @@ export function MeetingsOverview() {
           </CardContent>
         </Card>
       )}
+
+      {/* Schedule Meeting Dialog */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule Meeting</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Lead *</Label>
+              <Select value={form.leadId} onValueChange={v => setForm(p => ({ ...p, leadId: v }))}>
+                <SelectTrigger><SelectValue placeholder="Select a lead" /></SelectTrigger>
+                <SelectContent>
+                  {leads.map(l => (
+                    <SelectItem key={l.id} value={l.id}>{l.customerName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Agenda *</Label>
+              <Input
+                placeholder="What is the meeting about?"
+                value={form.agenda}
+                onChange={e => setForm(p => ({ ...p, agenda: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Date *</Label>
+                <Input
+                  type="date"
+                  value={form.meetingDate}
+                  onChange={e => setForm(p => ({ ...p, meetingDate: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Time *</Label>
+                <Input
+                  type="time"
+                  value={form.meetingTime}
+                  onChange={e => setForm(p => ({ ...p, meetingTime: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => void handleCreate()}
+              disabled={submitting || !form.leadId || !form.agenda || !form.meetingDate || !form.meetingTime}
+            >
+              {submitting ? 'Scheduling...' : 'Schedule Meeting'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
