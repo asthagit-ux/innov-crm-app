@@ -64,3 +64,52 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
+
+    const body = await req.json();
+    if (!body.id || !body.agenda || !body.meetingDate) {
+      return NextResponse.json({ error: "id, agenda and meetingDate are required" }, { status: 400 });
+    }
+
+    const meeting = await prisma.meeting.update({
+      where: { id: body.id },
+      data: {
+        agenda: body.agenda,
+        meetingDate: new Date(body.meetingDate),
+        reminderSent: false,
+      },
+      include: {
+        user: { select: { id: true, name: true } },
+        lead: { select: { id: true, customerName: true, contactNumber: true } },
+      },
+    });
+
+    return NextResponse.json({ success: true, data: meeting });
+  } catch (error) {
+    console.error("PATCH meeting error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { user, response } = await requireAuth();
+    if (!user) return response!;
+
+    const body = await req.json();
+    if (!body.id) {
+      return NextResponse.json({ error: "id is required" }, { status: 400 });
+    }
+
+    await prisma.meeting.delete({ where: { id: body.id } });
+
+    return NextResponse.json({ success: true, data: { deletedId: body.id } });
+  } catch (error) {
+    console.error("DELETE meeting error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}

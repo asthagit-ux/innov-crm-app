@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLeadQuery, useUpdateLead, useAddComment, useScheduleMeeting } from '@/queries/leads';
+import { useLeadQuery, useUpdateLead, useAddComment, useScheduleMeeting, useUpdateMeeting, useDeleteMeeting } from '@/queries/leads';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2, Phone } from 'lucide-react';
+import { ArrowLeft, Send, Calendar, X, UserPlus, Trash2, Phone, Pencil } from 'lucide-react';
 import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { toast } from 'sonner';
 
@@ -47,12 +47,15 @@ export function LeadDetail({ id }: { id: string }) {
   const updateLead = useUpdateLead(id);
   const addComment = useAddComment(id);
   const scheduleMeeting = useScheduleMeeting(id);
+  const updateMeetingMut = useUpdateMeeting(id);
+  const deleteMeetingMut = useDeleteMeeting(id);
 
   const [comment, setComment] = useState('');
   const [confirmCall, setConfirmCall] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showMeetingModal, setShowMeetingModal] = useState(false);
+  const [editingMeetingId, setEditingMeetingId] = useState<string | null>(null);
   const [meetingForm, setMeetingForm] = useState({ agenda: '', meetingDate: '', meetingTime: '' });
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
@@ -136,9 +139,33 @@ export function LeadDetail({ id }: { id: string }) {
   const handleScheduleMeeting = async () => {
     if (!meetingForm.agenda || !meetingForm.meetingDate || !meetingForm.meetingTime) return;
     const meetingDate = new Date(`${meetingForm.meetingDate}T${meetingForm.meetingTime}`).toISOString();
-    await scheduleMeeting.mutateAsync({ agenda: meetingForm.agenda, meetingDate });
+    if (editingMeetingId) {
+      await updateMeetingMut.mutateAsync({ id: editingMeetingId, agenda: meetingForm.agenda, meetingDate });
+      toast.success('Meeting updated.');
+    } else {
+      await scheduleMeeting.mutateAsync({ agenda: meetingForm.agenda, meetingDate });
+      toast.success('Meeting scheduled.');
+    }
     setShowMeetingModal(false);
+    setEditingMeetingId(null);
     setMeetingForm({ agenda: '', meetingDate: '', meetingTime: '' });
+    void refetch();
+  };
+
+  const handleEditMeeting = (meeting: Record<string, unknown>) => {
+    const dt = new Date(meeting.meetingDate as string);
+    setEditingMeetingId(meeting.id as string);
+    setMeetingForm({
+      agenda: meeting.agenda as string,
+      meetingDate: dt.toISOString().split('T')[0],
+      meetingTime: dt.toTimeString().slice(0, 5),
+    });
+    setShowMeetingModal(true);
+  };
+
+  const handleDeleteMeeting = async (meetingId: string) => {
+    await deleteMeetingMut.mutateAsync({ id: meetingId });
+    toast.success('Meeting deleted.');
     void refetch();
   };
 
@@ -193,7 +220,7 @@ export function LeadDetail({ id }: { id: string }) {
           {lead.customerName as string}
         </h1>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-          <Button variant="outline" size="sm" onClick={() => setShowMeetingModal(true)}>
+          <Button variant="outline" size="sm" onClick={() => { setEditingMeetingId(null); setMeetingForm({ agenda: '', meetingDate: '', meetingTime: '' }); setShowMeetingModal(true); }}>
             <Calendar className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Schedule Meeting</span>
             <span className="sm:hidden">Meeting</span>
@@ -458,6 +485,14 @@ export function LeadDetail({ id }: { id: string }) {
                         📅 {formatDateTime(meeting.meetingDate as string)}
                       </p>
                     </div>
+                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleEditMeeting(meeting)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => void handleDeleteMeeting(meeting.id as string)}>
+                        <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -548,10 +583,10 @@ export function LeadDetail({ id }: { id: string }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showMeetingModal} onOpenChange={setShowMeetingModal}>
+      <Dialog open={showMeetingModal} onOpenChange={(open) => { setShowMeetingModal(open); if (!open) setEditingMeetingId(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Schedule Meeting</DialogTitle>
+            <DialogTitle>{editingMeetingId ? 'Edit Meeting' : 'Schedule Meeting'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -587,7 +622,9 @@ export function LeadDetail({ id }: { id: string }) {
               onClick={() => void handleScheduleMeeting()}
               disabled={scheduleMeeting.isPending || !meetingForm.agenda || !meetingForm.meetingDate || !meetingForm.meetingTime}
             >
-              {scheduleMeeting.isPending ? 'Scheduling...' : 'Schedule Meeting'}
+              {(scheduleMeeting.isPending || updateMeetingMut.isPending)
+                ? (editingMeetingId ? 'Saving...' : 'Scheduling...')
+                : (editingMeetingId ? 'Save Changes' : 'Schedule Meeting')}
             </Button>
           </DialogFooter>
         </DialogContent>

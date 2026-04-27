@@ -7,6 +7,8 @@ import {
   updateLead,
   addComment,
   scheduleMeeting,
+  updateMeeting,
+  deleteMeeting,
 } from '@/services/leads.service';
 
 export const leadQueryKeys = {
@@ -102,6 +104,27 @@ export function useScheduleMeeting(leadId: string) {
   return useMutation({
     mutationFn: (data: { agenda: string; meetingDate: string }) =>
       scheduleMeeting({ leadId, ...data }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
+    },
+  });
+}
+
+export function useUpdateMeeting(leadId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string; agenda: string; meetingDate: string }) =>
+      updateMeeting(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
+    },
+  });
+}
+
+export function useDeleteMeeting(leadId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { id: string }) => deleteMeeting(data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: leadQueryKeys.detail(leadId) });
     },

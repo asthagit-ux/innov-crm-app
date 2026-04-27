@@ -91,3 +91,29 @@ export async function scheduleMeeting(data: {
   const json = await response.json();
   return json?.data ?? json;
 }
+
+export async function updateMeeting(data: {
+  id: string;
+  agenda: string;
+  meetingDate: string;
+}) {
+  const response = await fetch('/api/meeting', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to update meeting');
+  const json = await response.json();
+  return json?.data ?? json;
+}
+
+export async function deleteMeeting(data: { id: string }) {
+  const response = await fetch('/api/meeting', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Failed to delete meeting');
+  const json = await response.json();
+  return json?.data ?? json;
+}
