@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       data: {
         leadId: body.leadId,
         userId: user.id,
-        content: `📅 Meeting scheduled for ${new Date(body.meetingDate).toLocaleString("en-IN")} — ${body.agenda}`,
+        content: `📅 Meeting scheduled for ${new Date(body.meetingDate).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} — ${body.agenda}`,
         type: "meeting",
       },
     });
