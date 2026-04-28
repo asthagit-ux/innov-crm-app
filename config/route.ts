@@ -15,23 +15,27 @@ export type NavMainItem = {
 
 export function getCurrentAppConfig(user: unknown) {
   const baseUrl = "/admin";
-  const defaultRoutes: { navMain: NavMainItem[] } = {
-    navMain: [
-      {
-        title: "Dashboard",
-        url: "/dashboard",
-        icon: LayoutDashboard,
-      },
-      {
-        title: "Leads",
-        url: "/leads",
-        icon: UserCheck,
-      },
-      {
-        title: "Meetings",
-        url: "/meetings",
-        icon: Calendar,
-      },
+  const role = (user as { role?: string } | null)?.role;
+  const isAdmin = role === 'ADMIN';
+
+  const navMain: NavMainItem[] = [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Leads",
+      url: "/leads",
+      icon: UserCheck,
+    },
+    {
+      title: "Meetings",
+      url: "/meetings",
+      icon: Calendar,
+    },
+    // Admin-only items
+    ...(isAdmin ? [
       {
         title: "Users",
         url: "/users",
@@ -42,11 +46,12 @@ export function getCurrentAppConfig(user: unknown) {
         url: "/settings",
         icon: Settings,
       },
-    ],
-  };
+    ] : []),
+  ];
+
   return {
     baseUrl,
-    routes: defaultRoutes,
+    routes: { navMain },
     user,
   };
 }

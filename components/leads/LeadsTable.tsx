@@ -18,6 +18,7 @@ import { WhatsAppIcon } from '@/components/icons/WhatsAppIcon';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const PAGE_SIZE = 25;
 
@@ -136,6 +137,8 @@ function LeadsTableSkeleton() {
 
 export function LeadsTable() {
   const router = useRouter();
+  const authUser = useAuth();
+  const isAdmin = authUser?.role === 'ADMIN';
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [temperature, setTemperature] = useState('');
@@ -357,24 +360,28 @@ export function LeadsTable() {
           <p className="mt-1 text-sm text-muted-foreground">Manage and track your leads</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex-1 sm:flex-none">
-                <Download className="mr-2 h-4 w-4" /> Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={downloadCSV}>
-                Download as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={downloadExcel}>
-                Download as Excel (.xlsx)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button onClick={() => setShowAddModal(true)} className="flex-1 sm:flex-none">
-            <Plus className="mr-2 h-4 w-4" /> Add Lead
-          </Button>
+          {isAdmin && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex-1 sm:flex-none">
+                  <Download className="mr-2 h-4 w-4" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={downloadCSV}>
+                  Download as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={downloadExcel}>
+                  Download as Excel (.xlsx)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {isAdmin && (
+            <Button onClick={() => setShowAddModal(true)} className="flex-1 sm:flex-none">
+              <Plus className="mr-2 h-4 w-4" /> Add Lead
+            </Button>
+          )}
         </div>
       </div>
 
@@ -422,16 +429,18 @@ export function LeadsTable() {
               {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Select value={assigneeFilter || 'ALL'} onValueChange={v => setAssigneeFilter(v === 'ALL' ? '' : v)}>
-            <SelectTrigger className={`h-9 w-[135px] shrink-0${assigneeFilter ? 'border-primary/50 text-primary' : ''}`}>
-              <SelectValue placeholder="All Assignees" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Assignees</SelectItem>
-              <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
-              {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {isAdmin && (
+            <Select value={assigneeFilter || 'ALL'} onValueChange={v => setAssigneeFilter(v === 'ALL' ? '' : v)}>
+              <SelectTrigger className={`h-9 w-[135px] shrink-0${assigneeFilter ? 'border-primary/50 text-primary' : ''}`}>
+                <SelectValue placeholder="All Assignees" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Assignees</SelectItem>
+                <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
+                {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={platformFilter || 'ALL'} onValueChange={v => setPlatformFilter(v === 'ALL' ? '' : v)}>
             <SelectTrigger className={`h-9 w-[135px] shrink-0${platformFilter ? 'border-primary/50 text-primary' : ''}`}>
               <SelectValue placeholder="All Platforms" />
@@ -539,15 +548,17 @@ export function LeadsTable() {
                   {ACTIVE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <Select onValueChange={v => void handleBulkUpdate({ assignedTo: v === '__none__' ? null : v })} disabled={bulkUpdating}>
-                <SelectTrigger className="h-8 w-[140px] border-muted-foreground/25 bg-background/50 text-xs">
-                  <SelectValue placeholder="Assign To" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unassigned</SelectItem>
-                  {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {isAdmin && (
+                <Select onValueChange={v => void handleBulkUpdate({ assignedTo: v === '__none__' ? null : v })} disabled={bulkUpdating}>
+                  <SelectTrigger className="h-8 w-[140px] border-muted-foreground/25 bg-background/50 text-xs">
+                    <SelectValue placeholder="Assign To" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
+                    {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             {bulkUpdating && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -613,22 +624,29 @@ export function LeadsTable() {
                             </div>
                           )}
                         </div>
-                        <div className="mt-0.5" onClick={e => e.stopPropagation()}>
-                          <Select
-                            value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
-                            onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
-                          >
-                            <SelectTrigger className="h-6 w-auto border-0 bg-transparent p-0 text-xs text-muted-foreground focus:ring-0 gap-1">
-                              <SelectValue placeholder="Unassigned" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">Unassigned</SelectItem>
-                              {users.map(u => (
-                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {isAdmin && (
+                          <div className="mt-0.5" onClick={e => e.stopPropagation()}>
+                            <Select
+                              value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
+                              onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
+                            >
+                              <SelectTrigger className="h-6 w-auto border-0 bg-transparent p-0 text-xs text-muted-foreground focus:ring-0 gap-1">
+                                <SelectValue placeholder="Unassigned" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">Unassigned</SelectItem>
+                                {users.map(u => (
+                                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {!isAdmin && (lead.assignedUser as Record<string, string> | null)?.name && (
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {(lead.assignedUser as Record<string, string>).name}
+                          </p>
+                        )}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         {temp && (
@@ -636,13 +654,15 @@ export function LeadsTable() {
                             {TEMP_EMOJI[temp]} {temp.charAt(0) + temp.slice(1).toLowerCase()}
                           </span>
                         )}
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteId(lead.id as string); }}
-                          className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Delete lead"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {isAdmin && (
+                          <button
+                            onClick={e => { e.stopPropagation(); setDeleteId(lead.id as string); }}
+                            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            title="Delete lead"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -754,20 +774,26 @@ export function LeadsTable() {
                           </div>
                         </TableCell>
                         <TableCell onClick={e => e.stopPropagation()}>
-                          <Select
-                            value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
-                            onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
-                          >
-                            <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
-                              <SelectValue placeholder="Unassigned" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">Unassigned</SelectItem>
-                              {users.map(u => (
-                                <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {isAdmin ? (
+                            <Select
+                              value={((lead.assignedUser as Record<string, string> | null)?.id) || '__none__'}
+                              onValueChange={v => handleInlineUpdate(lead.id as string, 'assignedTo', v === '__none__' ? '' : v)}
+                            >
+                              <SelectTrigger className="h-7 w-full border-0 bg-transparent p-0 text-xs focus:ring-0">
+                                <SelectValue placeholder="Unassigned" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">Unassigned</SelectItem>
+                                {users.map(u => (
+                                  <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">
+                              {(lead.assignedUser as Record<string, string> | null)?.name ?? '—'}
+                            </span>
+                          )}
                         </TableCell>
 
                         <TableCell onClick={e => e.stopPropagation()}>
@@ -835,13 +861,15 @@ export function LeadsTable() {
                           </Select>
                         </TableCell>
                         <TableCell onClick={e => e.stopPropagation()} className="text-right">
-                          <button
-                            onClick={() => setDeleteId(lead.id as string)}
-                            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                            title="Delete lead"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => setDeleteId(lead.id as string)}
+                              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Delete lead"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRole } from "@/lib/api-auth";
 
 // GET single lead
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
     const lead = await prisma.lead.findUnique({
       where: { id },
@@ -28,6 +28,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+    // USER can only view leads assigned to them
+    if (role === "USER" && lead.assignedTo !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     return NextResponse.json({ success: true, data: lead });
   } catch (error) {
     console.error("GET lead error:", error);
@@ -39,8 +43,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
+
+    // USER can only update leads assigned to them, and cannot reassign
+    if (role === "USER") {
+      const existing = await prisma.lead.findUnique({ where: { id }, select: { assignedTo: true } });
+      if (!existing || existing.assignedTo !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
+
     const body = await req.json();
     const lead = await prisma.lead.update({
       where: { id },
@@ -53,7 +66,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         ...(body.status && { status: body.status }),
         ...(body.temperature !== undefined && { temperature: body.temperature }),
         ...(body.activeStatus && { activeStatus: body.activeStatus }),
-        ...(body.assignedTo !== undefined && { assignedTo: body.assignedTo || null }),
+        // Only ADMIN can reassign leads
+        ...(role === "ADMIN" && body.assignedTo !== undefined && { assignedTo: body.assignedTo || null }),
         ...(body.followUpDate !== undefined && { followUpDate: body.followUpDate ? new Date(body.followUpDate) : null }),
         ...(body.propertyType !== undefined && { propertyType: body.propertyType }),
         ...(body.briefScope !== undefined && { briefScope: body.briefScope }),
@@ -69,12 +83,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-// DELETE a lead
+// DELETE a lead — ADMIN only
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
+    if (role !== "ADMIN") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     await prisma.lead.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRole } from "@/lib/api-auth";
 import { sendNewLeadNotification } from "@/lib/mailer";
 
 // GET leads with full server-side filtering + pagination
 export async function GET(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const { searchParams } = new URL(req.url);
@@ -43,7 +43,10 @@ export async function GET(req: NextRequest) {
       ...(activeStatus && { activeStatus: activeStatus as never }),
       ...(platform     && { platform }),
       ...(leadSource   && { leadSource }),
-      ...(assignedTo === "UNASSIGNED" ? { assignedTo: null } : assignedTo ? { assignedTo } : {}),
+      // USER role: always restrict to their own assigned leads, ignoring any assignedTo filter
+      ...(role === "USER"
+        ? { assignedTo: user.id }
+        : assignedTo === "UNASSIGNED" ? { assignedTo: null } : assignedTo ? { assignedTo } : {}),
       ...(dateCreated === "today" && { createdAt: { gte: todayStartUTC, lt: todayEndUTC } }),
       ...(dateCreated === "week"  && { createdAt: { gte: weekStartUTC } }),
       ...(dateCreated === "month" && { createdAt: { gte: monthStartUTC } }),
@@ -85,7 +88,7 @@ export async function GET(req: NextRequest) {
 // POST create a new lead
 export async function POST(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const body = await req.json();

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRole } from "@/lib/api-auth";
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const body = await req.json();
@@ -18,16 +18,19 @@ export async function PATCH(req: NextRequest) {
     if (data.status) updateData.status = data.status;
     if (data.temperature !== undefined) updateData.temperature = data.temperature;
     if (data.activeStatus) updateData.activeStatus = data.activeStatus;
-    if (data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo || null;
+    // Only ADMIN can bulk-reassign leads
+    if (role === "ADMIN" && data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo || null;
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
     }
 
-    const result = await prisma.lead.updateMany({
-      where: { id: { in: ids } },
-      data: updateData,
-    });
+    // USER can only update leads assigned to them
+    const where = role === "USER"
+      ? { id: { in: ids }, assignedTo: user.id }
+      : { id: { in: ids } };
+
+    const result = await prisma.lead.updateMany({ where, data: updateData });
 
     return NextResponse.json({ success: true, data: { count: result.count } });
   } catch (error) {

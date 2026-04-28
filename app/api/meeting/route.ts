@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/api-auth";
+import { requireAuthWithRole } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, role, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const { searchParams } = new URL(req.url);
     const leadId = searchParams.get("leadId");
 
+    // USER role: only meetings for leads assigned to them
+    const where = leadId
+      ? { leadId }
+      : role === "USER"
+        ? { lead: { assignedTo: user.id } }
+        : {};
+
     const meetings = await prisma.meeting.findMany({
-      where: leadId ? { leadId } : {},
+      where,
       orderBy: { meetingDate: "asc" },
       include: {
         user: { select: { id: true, name: true } },
@@ -28,7 +35,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const body = await req.json();
@@ -67,7 +74,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const body = await req.json();
@@ -97,7 +104,7 @@ export async function PATCH(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { user, response } = await requireAuth();
+    const { user, response } = await requireAuthWithRole();
     if (!user) return response!;
 
     const body = await req.json();
